@@ -15,6 +15,36 @@ eclipse版本信息：
 尝试1：错误，eclipse-jee-luna-SR2-win32-x86_64；版本信息是：Version: Luna Service Release (4.4.2)，无JEF enhance的功能
 
 尝试2：http://www.eclipse.org/downloads/packages/eclipse-ide-java-ee-developers/lunar
+虽然是正确的Luna版本，但是没有JEF加强的插件。公司给的带JEF的eclipse的软件包里面，看文件的目录，也不知道JEF的插件是哪个。
+
+尝试3：
+只能用IDEA了，依据caiyida的指导，可以跑起来项目了。
+配置的过程：
+
+3.1，导入maven项目
+	修改本地的maven仓库的地址:
+	File->settings->左上角搜索框搜索”maven”, local repository修改为本地的maven的目录。如D:/.m2/repository
+3.2, 配置tomcat：
+    新建一个本地的tomcat,在server标签页下面:将After launch前面的勾去掉；Apollo将http port修改为8087，JMX port不变。
+	在Deployment标签页下面,新建一个apollo-web:war exploded.
+    在右侧的Application context框内输入: /apollo-web
+    新建一个war exploded artifact
+3.3将IDEA切换到terminal窗口,输入:
+	mvn clean install -Dmaven.javadoc.skip=true -Dcobertura.skip=true -Dautoconfig.skip=true -Dmaven.test.skip=true
+	最后看到 BUILD SUCCESS
+
+3.4, 新开一个idea，导入cas项目
+	配置tomcat，修改名为name为cas；去掉After launch的前面的勾；将http port改为8082 ； jmx port修改为1100
+    在deployment标签页下面.新建一个cas:war exploded.
+    在右侧的Application context框内输入: /cas
+    新建一个war exploded artifact
+
+    访问cas登录页面输入：
+    127.0.0.1:8082/cas
+
+    访问apollo-web系统，输入：
+	http://127.0.0.1:8087/apollo-web/web/user.action
+
 
 ========================================================================================================================================================
 	
