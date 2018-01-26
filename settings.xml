@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<settings>
+	<localRepository>D:/.m2/repository</localRepository>
+
+
+	<mirrors>
+		<mirror>
+			<id>publicsecurity-down</id>
+			<mirrorOf>*</mirrorOf>
+			<url>http://maven.hikvision.com.cn/nexus/content/groups/publicsecurity-down/
+			</url>
+		</mirror>
+	</mirrors>
+
+
+	<profiles>
+		<profile>
+			<id>develop</id>
+			<repositories>
+				<repository>
+					<id>publicsecurity-down</id>
+					<name>publicsecurity-down</name>
+					<url>http://maven.hikvision.com.cn/nexus/content/groups/publicsecurity-down/
+					</url>
+					<releases>
+						<enabled>true</enabled>
+					</releases>
+					<snapshots>
+						<enabled>true</enabled>
+					</snapshots>
+				</repository>
+			</repositories>
+		</profile>
+		
+		
+		<profile>
+			<id>deploy</id>
+			<repositories>
+				<repository>
+					<id>publicsecurity-down</id>
+					<name>publicsecurity-down</name>
+					<url>http://maven.hikvision.com.cn/nexus/content/groups/publicsecurity-down/
+					</url>
+					<releases>
+						<enabled>true</enabled>
+						<updatePolicy>always</updatePolicy>
+
+					</releases>
+					<snapshots>
+						<enabled>true</enabled>
+						<updatePolicy>always</updatePolicy>
+					</snapshots>
+				</repository>
+			</repositories>
+		</profile>
+	</profiles>
+
+	<activeProfiles>
+		<activeProfile>develop</activeProfile>
+	</activeProfiles>
+
+	
+	<servers>
+	
+		<server>
+			<id>publicsecurity-down</id>
+			<username>publicsecurity</username>
+			<password>public@123</password>
+		</server>
+		
+		<server>
+			<id>publicsecurity-release</id>
+			<username>publicsecurity-cm</username>
+			<password>public@456</password>
+		</server>
+
+		<server>
+			<id>publicsecurity-snapshot</id>
+			<username>publicsecurity</username>
+			<password>public@123</password>
+		</server>
+		
+		<server>
+			<id>nexus-hik</id>  
+			<username>zhulei2</username>
+			<password>9527</password> 		
+		</server>
+
+	</servers>
+
+
+</settings>
