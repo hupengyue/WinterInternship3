@@ -1,6 +1,6 @@
-# cas登录流程
+cas登录流程
 ========================================================================================================================================================
-## 当浏览器输入：http://10.6.130.110:8087/apollo-web/web/role.action 之后
+当浏览器输入：http://10.6.130.110:8087/apollo-web/web/role.action 之后
 
 代码跳转流程
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -157,6 +157,7 @@ AuthenticationViaFormAction.submit(){
 	3.3.1，行51，将用户的在线状态保存到Ehcache里面，调用：userStatusService.saveUserStatus(ticket.getId(), hikUsernamePasswordCredentials.getUser().getId(), hikUsernamePasswordCredentials.getUsername(), Integer.parseInt(hikUsernamePasswordCredentials.getLoginType()), 
 							                                hikUsernamePasswordCredentials.getUser().getDeptIndexCode(), hikUsernamePasswordCredentials.getClientIP(), hikUsernamePasswordCredentials.getClientMAC(), 
 							                                hikUsernamePasswordCredentials.getService()!= null ? hikUsernamePasswordCredentials.getService() : hikUsernamePasswordCredentials.getServiceIP());
+    3.3.2，行64，更新用户的userStatus，调用：UserStatus userStatus =userStatusService.getUserStatus(ticket.getId());															
 }
 --------------------------------------------------------------------------------------------------------------------------------------------------------
 3.1.1，AuthenticationManagerImpl.authenticateAndObtainPrincipal(Credentials credentials){
@@ -166,8 +167,21 @@ AuthenticationViaFormAction.submit(){
 }
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------
-3.3.1，
+函数功能：
+    保存一些登录用户的必要的信息到Ehcache里面
+3.3.1，UserStatusServiceImpl.saveUserStatus(String sessionId, String userId, 
+            String userName, int loginType, String orgId, 
+			String cuIp, String cuMac, String enterService) {
 
+
+}
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+
+3.3.2，UserStatusServiceImpl.getUserStatus(String sessionId) {
+
+
+}
 --------------------------------------------------------------------------------------------------------------------------------------------------------
 1.1.1.1，SingleSignOutFilter(){
     1.1.1.1.1，行80：过滤请求的url，调用filterChain.doFilter(servletRequest, servletResponse);
@@ -297,3 +311,158 @@ AuthenticationViaFormAction.submit(){
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+========================================================================================================================================================
+当一个登录的用户已经在cas验证过登录了，产生了TGT，再次直接登录cas或者，登录第二个app，app发现没有局部session，重定向到cas:
+
+AuthInterceptor.preHandler(HttpServletRequest request, HttpServletResponse response, Object handler){
+    行77，刷新TGT的最后更新的时间，调用：session.setAttribute(SessionConstants.TGT_LASTFLUSHTIMEINMILL, now);
+	行85，从session中取出登录的user，调用：User user = (User)session.getAttribute(SessionConstants.USER);
+	行87，如果user为null{
+	    行88：从request里面直接取出username，调用：String userName = getUsername(request, session);
+		行90，synchronized (sysObject) {
+		    从数据库里面由username找出user对象；
+			行95，行96，将user的必要信息设置到session里面
+		}
+	}
+	行103，如果user不为null{
+	    行104，从concurrentHashMap里面取出TGTId对应的xml，（如果xml为null，那就返回null）
+		如果TGT不为null{
+		    刷新TGT的最后更新的时间；
+		
+		} else（TGT对应的xml为null，说明虽然TGTId还存在着，但是这个TGT已经过期了，已经删除了TGTId对应的xml文件里）{
+		    删除这个无用的session；
+		}
+	}
+	21,行127，验证失败，重新产生和认证TGT，调用：jumpLogin(request, response);
+	行128，返回false；
+	
+
+}
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+21,
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+不知道怎么就跳转到了：
+CleanUserStatusTask.cleanUserStatus(){
+    行39，找到所有缓存着的userStatus
+	
+	如果userStatus的更新时间为null{
+	
+	} else {
+	    如果userStatus时间已经过期{
+		    删除这个已经过期的userStatus
+		}
+	}
+}
+
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+#  http协议
+## post请求
+http协议规定,post请求分为三个部分,状态行,请求头,消息主体.类似于下面这样:
+<method> <request -URL> <version>
+<headers>
+
+<entity-body>
+
+post提交的数据必须放在消息主体(entity-body)中,比如,RestTemplate中需要将具体请求的参数放入MultiValueMap <String, Object > map里面,再用此map和headers构造一个HttpEntity对象:
+HttpEntity<MultiValueMap<String, Object>> entity = new HttpEntity<MultiValueMap<String, Object>>(map, headers);
+但是，实际上，开发者可以自己决定主体的格式，常见的格式有两种：
+token=12345&id=getUser；
+或者
+{token:1111; id:getUser}
+数据发送到服务器，服务器端必须能够正确的解析，才能正确得到客户端传入的参数。服务器端的语言：python和php等的framwork都内置了解析常见数据格式的功能。服务器端通常根据客户端传入的headers中Content-Type字段，来获知客户端请求中的消息主体，是用哪种方式编码的，然后根据这种方式对主体进行解析并得到请求传入的具体的参数值。
+
+headers中Content-Type字段的可以设置的常见的值为：
+
+application/x-www-form-urlencoded
+总结：application/x-www-form-urlencoded～HttpServletRequest.getParameter()取数据（来源于网上：getParameter()只能获取在url串当中的入参）
+这是一种最常见的POST提交数据的方式了。请求类似于下面这样：
+
+完整的请求头信息：
+headers = {
+
+Cookie=JSESSIONID=105iya17xq8at127snvji4mio9, 
+
+Accept=*/*, 
+
+Cache-Control=no-cache, 
+
+Connection=keep-alive, 
+
+User-Agent=Apache-HttpClient/4.5.2 (Java/1.8.0_152-release), 
+
+Host=10.6.130.110,
+ 
+Accept-Encoding=gzip,deflate, 
+
+Content-Length=50, 
+
+Content-Type=application/x-www-form-urlencoded; //很明显Content-Type被设置为application/x-www-form-urlencoded
+
+charset=GBK}
+
+对应与此Content-Type的请求参数的格式：
+token=12345&id=getUser
+其中，提交的数据按照key1=value1&key2=value2的格式进行编码，key和value都进行了url转码。
+
+Controller获取客户端发送的数据的情况：
+数据是从HttpServletRequest.getParameter()方法里面获取到的即：
+    String paramToken = request.getParameter("token");
+	String paramId = request.getParameter("id");
+
+	paramToken，paramId都是正确的客户端传过来的值；
+
+但是：
+    1），
+	HttpServletRequest.getReader()会报错的
+	BufferedReader bufferedReader = request.getReader();	
+    2），
+	Scanner scanner = new Scanner(request.getInputStream(), "UTF-8").useDelimiter("\\A");
+	scanner.hasNext();//为假，scanner里面没有任何的数据
+	
+application/json
+总结：application/json～HttpServletRequest.getReader()取客户端传进来的参数数据。
+
+告诉服务器，消息主体是序列化之后的JSON字符串。json格式支持比键值对复杂的多的结构数据，这一点很有用。
+headers = {
+
+Accept=text/plain, application/json, application/*+json, */*, 
+
+Cache-Control=no-cache, 
+
+Connection=keep-alive, 
+User-Agent=Java/1.8.0_66, 
+Host=10.6.130.110, 
+Pragma=no-cache, 
+Content-Length=75, 
+Content-Type=application/json}
+
+Controller获取客户端发送的数据的情况：
+数据是从HttpServletRequest.getReader()方法里面获取到的即：
+
+	BufferedReader bufferedReader = request.getReader();
+
+	String str,wholeStr = "";
+	while((str = bufferedReader.readLine())!=null){
+		wholeStr+=str;
+	}
+	whileStr 存储的值为：{"token":["5D877242155AFE74E053455C920AEF7A"],"id":["system/user/getuser"]}
+	
+但是：
+	String paramToken = request.getParameter("token");
+	String paramId = request.getParameter("id");
+
+	paramToken，paramId都是null；
+	
+	Scanner scanner = new Scanner(request.getInputStream(), "UTF-8").useDelimiter("\\A");
+	
+	request.getInputStream()也会报错，na，即：
+	at org.eclipse.jetty.server.Request.getInputStream(Request.java:645) ~[na:na]
+	at vision.apollo.cas.adaptors.eportal.action.BaseConfigAction.extractPostRequestBodyByStream(BaseConfigAction.java:309) ~[classes/:na]
+	
