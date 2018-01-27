@@ -767,7 +767,7 @@ hpyps:引入了cas；并介绍了一种开源的cas架构:Apereo；后文下载�
 
 	《SSO CAS单点系列》之 实操！轻松玩转SSO CAS就这么简单(相识篇)
 	2016-01-12 09:47:26 
-	
+	hpyps: tgt并没有放到session中，cas全局会话的实现并没有直接使用session机制，而是利用了cookie自己实现的，这个cookie叫做TGC，里面存放了TGTId，认证中心的服务端实现了TGC
 	《SSO CAS单点系列》之 支持Web应用跨域登录CAS（千斤干货）
 	hpyps：在原有的应用系统页面进行登录认证中心，如，不发生跳转，我们需要使用Ajax方式。而最常用的XML HttpRequest Ajax方式调用，存在一个跨域的问题。即，为了安全，Ajax本身是不允许跨域调用的。
 	
