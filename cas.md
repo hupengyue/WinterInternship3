@@ -1,53 +1,200 @@
-IDEA打包命令：
-	clean install -Dmaven.javadoc.skip=true -Dcobertura.skip=true -Dautoconfig.skip=true -Dmaven.test.skip=true 
-	
-========================================================================================================================================================
-eclipse版本信息：
-	Eclipse Java EE IDE for Web Developers.
+remoteLogin-webflow.xml
+此xml文件之中，抽象出remoteLogin登录的流程：
 
-	Version: Luna Release (4.4.0)
-	Build id: 20140612-0600
+remoteLoginAction(尝试取tgt，)，调用：101
 
-	(c) Copyright Eclipse contributors and others 2000, 2014.  All rights reserved. Eclipse and the Eclipse logo are trademarks of the Eclipse Foundation, Inc., https://www.eclipse.org/. The Eclipse logo cannot be altered without Eclipse's permission. Eclipse logos are provided for use under the Eclipse logo and trademark guidelines, https://www.eclipse.org/logotm/. Oracle and Java are trademarks or registered trademarks of Oracle and/or its affiliates. Other names may be trademarks of their respective owners.
+ticketGrantingTicketExisitsCheck（检查TGT是否存在，如果存在->跳到serviceAuthorizationCheck，调用102；如果不存在->跳到isMockLogin（从cas客户端的模拟登录））
 
-	This product includes software developed by other open source projects including the Apache Software Foundation, https://www.apache.org/.
+serviceAuthorizationCheck（提前检查一下要访问的service是否是本系统有的：serviceAuthorizationCheck.java: 如果没有service，直接返回success；如果有service{如果系统找不到此service，报错；如果是注册的服务但是未启用，报错；其余情况，返回success；}）如果没报错，->realSubmit
 
-尝试1：错误，eclipse-jee-luna-SR2-win32-x86_64；版本信息是：Version: Luna Service Release (4.4.2)，无JEF enhance的功能
+realSubmit（调用103，：remoteAuthenticationViaFormAction.submit(flowRequestContext, messageContext)，如果返回success，->跳转到sendTicketGrantingTicket（将新的TGT设置到cookie中）; 如果返回error，->跳转到remoteCallbackView报错的页面）
 
-尝试2：http://www.eclipse.org/downloads/packages/eclipse-ide-java-ee-developers/lunar
-虽然是正确的Luna版本，但是没有JEF加强的插件。公司给的带JEF的eclipse的软件包里面，看文件的目录，也不知道JEF的插件是哪个。
+sendTicketGrantingTicket(调用104，：sendTicketGrantingTicketAction.java: 此类处理TGT的创建和销毁工作：如果没有TGT，直接返回success；行37：从context中取出TGT（这是新的TGT）；行38：从cookie中能够取出TGT（这是旧的TGT）&& 旧的TGT确实存在，就把新的TGT加入到cookie中，把旧的TGT销毁掉（即：旧的TGT销毁并用新的TGT替代之）)进行完流程之后，跳到serviceCheck；
 
-尝试3：
-只能用IDEA了，依据caiyida的指导，可以跑起来项目了。
-配置的过程：
+serviceCheck(检查flowScope中的service是否存在（又跳转到了remoteLogin），如果存在,->跳转到generateServiceTicket（这种情况，说明是：先访问一个app（即service），发现没登录，重定向到cas进行登录，认证了用户之后，产生TGT，需要先产生ST，接着再重定向到app）；如果不存在,->跳转到casloginDesion)
 
-3.1，导入maven项目
-	修改本地的maven仓库的地址:
-	File->settings->左上角搜索框搜索”maven”, local repository修改为本地的maven的目录。如D:/.m2/repository
-3.2, 配置tomcat：
-    新建一个本地的tomcat,在server标签页下面:将After launch前面的勾去掉；Apollo将http port修改为8087，JMX port不变。
-	在Deployment标签页下面,新建一个apollo-web:war exploded.
-    在右侧的Application context框内输入: /apollo-web
-    新建一个war exploded artifact
-3.3将IDEA切换到terminal窗口,输入:
-	mvn clean install -Dmaven.javadoc.skip=true -Dcobertura.skip=true -Dautoconfig.skip=true -Dmaven.test.skip=true
-	最后看到 BUILD SUCCESS
+generateServiceTicket(行46：产生ST，组装一个带有此ST的url，具体调用：1.1.1，返回success)如果返回success，那么->跳转到warn
 
-3.4, 新开一个idea，导入cas项目
-	配置tomcat，修改名为name为cas；去掉After launch的前面的勾；将http port改为8082 ； jmx port修改为1100
-    在deployment标签页下面.新建一个cas:war exploded.
-    在右侧的Application context框内输入: /cas
-    新建一个war exploded artifact
+warn（根据flowScope中的warnCookieValue的值的真与假来判断，如果为真，->跳转到showWarningView; 如果为假，->跳转到redirect）
 
-    访问cas登录页面输入：
-    127.0.0.1:8082/cas
+redirect(根据flowScope.service.getResponse(requestScope.serviceTicketId)的值的有无，如果有，那么->跳转到postRedirectDecision)
 
-    访问apollo-web系统，输入：
-	http://127.0.0.1:8087/apollo-web/web/user.action
-
+postRedirectDecision(根据requestScope.response.responseType.name() == 'POST' 如果等于，->跳转到postView；如果不等于，跳转到->redirectView)
 
 ========================================================================================================================================================
+函数功能：
+    构造函数
+ExternalRedirectAction.ExternalRedirectAction(final RequestContext context){
+    
+}
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+函数功能：
+    切换transition的函数:根据前一个transition执行的结果，来判断下一步该执行哪个transition；
 	
+1007，protected void ActionState.doEnter(RequestControlContext context){
+    行101，执行action，获取执行的结果，调用：1006，Event event = ActionExecutor.execute(action, context);
+	行105，调用1007.1，context.handleEvent(event);
+	行106，返回；
+}
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+1007.1，public boolean RequestControlContextImpl.handleEvent(Event event){
+    行210，返回，，调用1007.1.1，return flowExecution.handleEvent(event, this);
+}
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+1007.1.1，
+public boolean FlowExecutionImpl.handleEvent(Event event){
+
+    行388，返回， ，调用1007.1.1.1，：return getActiveSessionInternal().getFlow().handleEvent(context);
+}
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+1007.1.1.1，
+public boolean Flow.handleEvent(RequestControlContext context){
+    获取现在所处的状态：一个例子：[ActionState@267dc857 id = 'realSubmit', flow = 'remoteLogin', entryActionList = list[[empty]], exceptionHandlerSet = list[[empty]], actionList = list[[AnnotatedAction@2138976a targetAction = [EvaluateAction@700fc692 expression = remoteAuthenticationViaFormAction.submit(flowRequestContext, messageContext), resultExpression = [null]], attributes = map[[empty]]]], transitions = list[[Transition@4e40dc01 on = warn, to = warn], [Transition@6379aee on = success, to = sendTicketGrantingTicket], [Transition@6351de85 on = error, to = remoteCallbackView], [Transition@6de4af2b on = accountDisabled, to = casAccountDisabledView], [Transition@250cd642 on = mustChangePassword, to = casMustChangePassView], [Transition@1f56d8e7 on = accountLocked, to = casAccountLockedView], [Transition@729e987e on = badHours, to = casBadHoursView], [Transition@3a4becf1 on = badWorkstation, to = casBadWorkstationView], [Transition@79b6833c on = passwordExpired, to = casExpiredPassView]], exitActionList = list[[empty]]]
+	调用：1007.1.1.1.1，return currentState.handleEvent(context);
+}
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+1007.1.1.1.1，
+public boolean TransitionableState.handleEvent(RequestControlContext context){
+    根据返回的transition，执行to代表的那个action，调用1007.1.1.1.1.1，：return context.execute(getRequiredTransition(context));
+}
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+1007.1.1.1.1.1，
+public Transition ActionState.getRequiredTransition(RequestContext context){
+    调用1007.1.1.1.1.1.1，    
+}
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+函数功能：
+    遍历this中所有的transition的数组transitions，从数组中找到与返回的结果匹配那个的那个transition
+1007.1.1.1.1.1.1，
+public Transition TransitionSet.getTransition(RequestContext context){
+    返回：一个例子[Transition@6379aee on = success, to = sendTicketGrantingTicket]
+}
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+1006，public static Event ActionExecutor.execute(Action action, RequestContext context){
+    行51，调用：Event event = action.execute(context);
+	行55，返回，行51，调用的结果：return event;
+}
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+1005，public Event AnnotatedAction.execute(RequestContext context){
+    行145，执行指定的action，获取执行的结果，调用：1004，Event result = getTargetAction().execute(context);
+	行146，返回，调用postProcessResult方法的结果，调用：return postProcessResult(result);
+}
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+函数功能：
+    
+1004，public final Event AbstractAction.execute(RequestContext context){
+    行188，执行action，获取执行的结果，调用：1003，result = doExecute(context);
+	行195，返回行188调用所返回的result；
+}
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+函数功能：
+    
+1003，protected Event EvaluateAction.doExecute(RequestContext context){
+    行75：从context里面获取result，
+	如果result是Action的派生类的对象{
+        行77：直接返回 “ 执行指定的action ”的结果，调用: 1002，return ActionExecutor.execute((Action) result, context);
+	}esle{
+	    如果resultExpression不为bull{
+		    
+		}
+	}
+	行82：调用：1003.1，return resultEventFactory.createResultEvent(this, result, context);
+}
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+1003.1，
+public Event resultEventFactory.createResultEvent(Object source, Object resultObject, RequestContext context){
+    只有一行：直接返回调用1003.1.1，的结果，return selector.forResult(resultObject).createResultEvent(source, resultObject, context);
+}
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+1003.1.1，
+public ResultEventFactory ResultEventFactorySelector.forResult(Object result){
+    如果result为null{
+	
+	}else（如果result不为null）{
+	    返回结果，获取result的类的信息，掉用1003.1.1.1，：return forType(result.getClass());
+	}
+}
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+1003.1.1.1，
+protected ResultEventFactorySelector.ResultEventFactory forType(Class resultType){
+    
+}
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+函数功能：
+    执行指定的action
+1002，public static Event ASbstractExecutor.execute(Action action, RequestContext context){
+    行51，执行指定的action，调用：1001，Event event = action.execute(context);
+	行55，返回行51的返回值event；
+}
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+1001，public final Event AbstractAction.execute(RequestContext context{
+    行188，执行action-state里面具体的evaluate expression，调用: result = doExecute(context);
+	行195，返回result；
+}
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+101，RemoteLoginAction.doExecute(){
+    行53：判断是否是重定向：调用：boolean redirect = ImpPropertiesManager.getInstance().getProperties("cas.redirect", "false").equals("true");
+	行57：如果redirect为真{
+	
+	}行71：else(redirect为假){
+	    不知道在干什么？？？
+	}
+	行81：从url的参数里面再取一把tgt；
+	行92：不管tgt是否为null，将tgt放入flow中，调用：context.getFlowScope().put("ticketGrantingTicketId", tgt);
+	行95：从context里面取出service，调用：final Service service = WebUtils.getService(this.argumentExtractors, context);
+	行102：将service放入flowScope中，
+}
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+函数功能：
+    提前检查一下要访问的service是否是本系统有的
+102，ServiceAuthorizationCheck.doExecute(final RequestContext context){
+    行54：从context里面取service，调用：final Service service = WebUtils.getService(context);
+	行56：如果service为null{
+	    返回success；
+	}
+	如果service不为null：进行如下的代码逻辑：
+	{
+	    如果系统找不到此service，报错；
+		如果是注册的服务但是未启用，报错；
+		其余情况，返回success；
+	}
+	
+}
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+103，remoteAuthenticationViaFormAction.submit(flowRequestContext, messageContext){
+
+}
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+104，
+protected Event sendTicketGrantingTicketAction.doExecute(final RequestContext context){
+    如果没有TGT，{
+	    直接返回success；
+	}
+	行47：从context中取出TGT（这是新的TGT）；调用104.1，：public void addCookie(final HttpServletRequest request, final HttpServletResponse response, final String cookieValue)
+	行48：从cookie中能够取出TGT（这是旧的TGT）&& 旧的TGT确实存在，就把新的TGT加入到cookie中，把旧的TGT销毁掉（即：旧的TGT销毁并用新的TGT替代之）)进行完流程之后，跳到serviceCheck；
+}
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+104.1，
+public void CookieRetrievingCookieGemerator.addCookie(final HttpServletRequest request, final HttpServletResponse response, final String cookieValue){
+    如果从request里面可以取到名为“rememberMe”的值，{
+	    创建cookie，将TGTId放进去，调用：super.addCookie(response, cookieValue);
+	}
+}
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+========================================================================================================================================================
 cas登录流程
 ========================================================================================================================================================
 当浏览器输入：http://10.6.130.110:8087/apollo-web/web/role.action 之后
@@ -113,7 +260,7 @@ CasAuthenticationFilter.doFilter(){
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------
 函数功能：
-    根据有无TGT做不同的事情：
+    根据有无TGT做不同的事情：（TGT的有无即代表全局会话是否存在，即：TGTId对应的XML文件存在，标识该用户已经在CAS登录和验证）
 	如果没有TGT，那么就先认证用户的存在性，如果认证成功，那么产生TGT；
 	如果有TGT，那么，如果没有ST，那么，依据TGT产生ST。
 AuthenticationViaFormAction.submit(){
@@ -124,16 +271,20 @@ AuthenticationViaFormAction.submit(){
 	        cookieTgt = true;
 		}
 	}
-	行104：如果有TGT：{
-	    1，如果cookieTgt为真，认证ST，调用：serviceTicketId = this.centralAuthenticationService.grantServiceTicket(ticketGrantingTicketId, service, null);
-	}else {
-	    2，行110：根据credentials认证ST，调用：serviceTicketId = this.centralAuthenticationService.grantServiceTicket(ticketGrantingTicketId, service, credentials);
+	行104：如果有TGTId：{
+	    1，如果cookieTgt为真，{
+		    认证ST，调用：serviceTicketId =      this.centralAuthenticationService.grantServiceTicket(ticketGrantingTicketId, service, null);
+		}else (如果cookieTgt为假){
+			2，行110：根据credentials认证ST，调用：serviceTicketId = this.centralAuthenticationService.grantServiceTicket(ticketGrantingTicketId, service, credentials);
+		}
+		行113，将STId放入RequestScope里面，调用：WebUtils.putServiceTicketInRequestScope(context, serviceTicketId);
+		如果有TGTId，在取TGT对象的过程中抛出异常，{
+            跳转到行136：销毁这个TGT的对象，调用this.centralAuthenticationService.destroyTicketGrantingTicket(ticketGrantingTicketId);
+		}
 	}
-	如果有TGTId，在取TGT对象的过程中抛出异常，{
-	    跳转到行136：销毁这个TGT的对象，调用this.centralAuthenticationService.destroyTicketGrantingTicket(ticketGrantingTicketId);
-	}
-	3，行150：如果没有TGT，就产生TGT，并且同时将产生的TGT设置到requestScope里面：
-	调用：WebUtils.putTicketGrantingTicketInRequestScope(context, this.centralAuthenticationService.createTicketGrantingTicket(credentials));
+	3，行150：如果没有TGT，就产生TGT，（调用：this.centralAuthenticationService.createTicketGrantingTicket(credentials)）
+	4，并且，同时将产生的TGT设置到requestScope里面，调用：
+	WebUtils.putTicketGrantingTicketInRequestScope(context, this.centralAuthenticationService.createTicketGrantingTicket(credentials));
 	
 }
 --------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -144,12 +295,15 @@ AuthenticationViaFormAction.submit(){
 }
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------
+函数功能：
+    产生ST，并且，将ST组装到一个service的url，cas认证中心访问这个带有ST的service，
+	
 1.1, GenerateServiceTicketAction.doexecute(Context context){
     1.1.1 也是2， 行45：产生ST，返回STId，调用：final String serviceTicketId = this.centralAuthenticationService
 	                                            .grantServiceTicket(ticketGrantingTicket, service);
 	行51～行63，构造带有ST的url，调用：encodeUrl += maoStr;比如：一个具体的例子：http://10.6.130.110:8087/apollo-web/web/role.action?ticket=ST-1-lVApdjLe11HZs1QGeQfM-cas
-	1.1.2，然后将此url放到了context里面，调用：context.getRequestScope().put("encodeUrl", encodeUrl);
-	不知道什么机制，就请求此构造的url，胡鹏跃猜想：靠的是webFlow的xml文件，来走的这个cas认证的流程
+	1.1.2，行65：然后将此url放到了context里面，调用：context.getRequestScope().put("encodeUrl", encodeUrl);
+	行67，返回success；请求此构造的url，胡鹏跃猜想：靠的是webFlow的xml文件，来走的这个cas认证的流程
 	1.1.1.0，行67，调用继承自AbstractAction.success();并返回一个Event对象，表示产生ST这个动作是成功的；
 	1.1.1.1，
 	
@@ -187,6 +341,14 @@ AuthenticationViaFormAction.submit(){
     返回TGT的id值
 
 }
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+4,
+public static void WebUtils.putTicketGrantingTicketInRequestScope(final RequestContext context, final String ticketValue) {
+    行76：将TGTId放入RequestContext，调用：context.getRequestScope().put("ticketGrantingTicketId", ticketValue);
+	行78：将TGTId放入？？？，调用：context.getFlowScope().put("ticketGrantingTicketId", ticketValue);
+}
+
+
 --------------------------------------------------------------------------------------------------------------------------------------------------------
 函数功能：
     根据ticketId取ticket对象
@@ -257,6 +419,9 @@ AuthenticationViaFormAction.submit(){
 	}
 }
 --------------------------------------------------------------------------------------------------------------------------------------------------------
+函数功能：
+    cas认证中心验证app返回的ST的有效性
+	
 1.1.1.1.1.1, Cas20ProxyReceivingTicketValidationfilter(AbstractTicketValidationFilter).doFilter(request, response){
     1.1.1.1.1.1.1, 行165，调用preFilter();
     行171，从request中取ticket，如果ticket（即ST）不为null{
@@ -580,19 +745,116 @@ hpyps：对应于海康的remoteLogin登录的流程。remoteLogin还可以进�
 	
 	对应cookie来说，出于安全性的考虑，它有一个作用域的问题，这个作用域由属性Domain和Path共同决定的。也就是说，如果浏览器发送的请求，不在此cookie的作用域范围之内的，请求是不会带上此cookie的。（cookie如同一个人手中的会员卡，卡上面只有一个卡号，所有的用户信息，都能通过此卡号到发出此会员卡的店内获取（等价于用户信息都在服务器端存储），作用域就如同不同的店铺发出不同的会员卡，肯德基的会员卡和全家的会员卡不能通用的，如果肯德基连锁店中的店铺A，发出了自己A店铺特殊的会员卡，那么，当你下次访问这个A店铺的时候，需要带上A店铺自己发布的会员卡和肯德基连锁店通用的会员卡，而不会带上访问全家连锁店的会员卡）。
 	path是访问路径，我们可以定义/根路径让其作用于所用的路径。但是，。domain就不一样了，我们不能定义顶级域名如com，让其对于所有的吃哦买网站都起作用。最大范围，我们只能定义到二级域名，如：taobao.com，而，通常情况下，一个企业可能包含有多个二级域名，如taobao.com, tmail.com, alitrip.com等等，所以，可以作用在taobao之下的cookie，便不能作用于tmail和alitrip之下了。	解决单系统问题的cookie机制不起作用了，多系统不能共享同一个会话，这就是问题的所在。
+-------------------------------------------------------------------------------
 
     2，《SSO CAS单点系列》之 实现一个SSO认证服务器是这样的！
 	2016-01-08 13:23:00
-帖子地址：http://www.imooc.com/article/3558
+	帖子地址：http://www.imooc.com/article/3558
+	
 Hpyps：帖子里面主要论述了：实现认证服务器时要注意的三个关键问题。
-
+-------------------------------------------------------------------------------
     3，《SSO CAS单点系列》之 自己动手实现一个属于自己的SSO认证服务器！
 	2016-01-08 14:02:01
+	
 Hpyps：帖子里面只有代码的片段，和主要的几个接口的设计文档：输入输出以及接口的功能。
+-------------------------------------------------------------------------------
+
     4，《SSO CAS单点系列》之 实操！轻松玩转SSO CAS就这么简单(相遇篇)
 	2016-01-08 15:09:42
+	
+hpyps:引入了cas；并介绍了一种开源的cas架构:Apereo；后文下载和使用了Apereo；体验课一下。没有剖析源代码和代码的组成架构。
+-------------------------------------------------------------------------------
+
 	《SSO CAS单点系列》之 实操！轻松玩转SSO CAS就这么简单(相识篇)
 	2016-01-12 09:47:26 
 	
 	《SSO CAS单点系列》之 支持Web应用跨域登录CAS（千斤干货）
 	hpyps：在原有的应用系统页面进行登录认证中心，如，不发生跳转，我们需要使用Ajax方式。而最常用的XML HttpRequest Ajax方式调用，存在一个跨域的问题。即，为了安全，Ajax本身是不允许跨域调用的。
+	
+	《Spring Web Flow 2.0 入门》
+	https://www.ibm.com/developerworks/cn/education/java/j-spring-webflow/index.html
+	web应用程序中的三种范围：
+	request范围中的对象是和客户的每一次具体的请求绑定在一起的。每次请求结束都会销毁对象，而，新的请求过来的时候，又会去创建新的对象。request范围适合存放数据量较大的临时数据。
+	
+	session范围中的对象是跟会话（session）绑定在一起的，每次会话结束会销毁这些对象。新的会话又会创建新的对象。http协议本身是无状态的。session范围适合存放本次会话需要保留的数据。
+	
+	application范围的对象是跟应用程序本身绑定在一起的，从servlet API的角度来说，就是存放在servletContext中的对象，他们随着Servlet的启动而创建，Servlet关闭时才会销毁。application范围适合存放那些与应用程序全局相关的数据。
+	
+	从现实应用的角度来说，session的范围很“鸡肋”，把大量的数据放入session会导致严重的效率问题，在分布式的环境中处理session，更是一不小心就会出错。request的范围虽说能存放大量的数据，但是，范围有限。
+	spring web flow提供了解决方案：
+	flow范围：
+	conversation范围：
+	
+	spring Web Flow的基本的元素：
+	Flow可以看作是客户端和服务器端的一次对话（conversation）。Flow的完成要由分多个步骤来实现，在spring Web Flow的语义里面，步骤的含义就是state。springwebflow提供了五种state。分别是Action state，view state，subflow state， decision state， end state
+	这些state可用于定义flow执行过程中的各个步骤。除了end state，其他state都可以转换到别的state，在state中，通过定义transition来实现到其他state的转换。转换的发生，一般由事件（event）来触发的。
+	
+	
+========================================================================================================================================================
+#有关IDEA的总结
+
+##打包命令：
+	clean install -Dmaven.javadoc.skip=true -Dcobertura.skip=true -Dautoconfig.skip=true -Dmaven.test.skip=true 
+
+##快捷键
+###寻找某个接口方法的具体实现方法：
+    ctrl+Alt+B
+###已知文件名，直接选中文件名，打开同名的文件
+	ctrl+shift+N
+###调试快捷键
+    F7，进入到代码；
+	Alt+shift+F7, 强制进入到代码；
+	F8，跳到下一步；
+	shift+F8，跳到下一个断点
+	Alt+F9, 运行到光标处。
+	
+========================================================================================================================================================
+#海康用的eclipse
+##海康用的eclipse版本信息：
+	Eclipse Java EE IDE for Web Developers.
+
+	Version: Luna Release (4.4.0)
+	Build id: 20140612-0600
+
+	(c) Copyright Eclipse contributors and others 2000, 2014.  All rights reserved. Eclipse and the Eclipse logo are trademarks of the Eclipse Foundation, Inc., https://www.eclipse.org/. The Eclipse logo cannot be altered without Eclipse's permission. Eclipse logos are provided for use under the Eclipse logo and trademark guidelines, https://www.eclipse.org/logotm/. Oracle and Java are trademarks or registered trademarks of Oracle and/or its affiliates. Other names may be trademarks of their respective owners.
+
+	This product includes software developed by other open source projects including the Apache Software Foundation, https://www.apache.org/.
+
+##尝试1：
+    结果：错误，eclipse-jee-luna-SR2-win32-x86_64；版本信息是：Version: Luna Service Release (4.4.2)，无JEF enhance的功能
+
+##尝试2：    
+    下载的路径为：http://www.eclipse.org/downloads/packages/eclipse-ide-java-ee-developers/lunar
+    结果：虽然是正确的Luna版本，但是没有JEF加强的插件。公司给的带JEF的eclipse的软件包里面，看文件的目录，也不知道有关JEF的插件是哪个。
+
+##尝试3：
+    看来只能用IDEA了，依据caiyida的指导，可以跑起来项目了。
+
+##用IDEA配置Apollo+sso项目的具体的过程：
+
+###导入maven项目
+	修改本地的maven仓库的地址:
+	File->settings->左上角搜索框搜索”maven”, local repository修改为本地的maven的目录。如D:/.m2/repository
+###配置tomcat：
+    新建一个本地的tomcat,在server标签页下面:将After launch前面的勾去掉；Apollo将http port修改为8087，JMX port不变。
+	在Deployment标签页下面,新建一个apollo-web:war exploded.
+    在右侧的Application context框内输入: /apollo-web
+    新建一个war exploded artifact
+### 将IDEA切换到terminal窗口,输入:
+	mvn clean install -Dmaven.javadoc.skip=true -Dcobertura.skip=true -Dautoconfig.skip=true -Dmaven.test.skip=true
+	最后看到 BUILD SUCCESS
+
+### 新开一个idea，导入cas项目
+	配置tomcat，修改名为name为cas；去掉After launch的前面的勾；将http port改为8082 ； jmx port修改为1100
+    在deployment标签页下面.新建一个cas:war exploded.
+    在右侧的Application context框内输入: /cas
+    新建一个war exploded artifact
+
+### 访问cas登录页面输入：
+    127.0.0.1:8082/cas
+
+### 访问apollo-web系统，输入：
+	http://127.0.0.1:8087/apollo-web/web/user.action
+
+
+========================================================================================================================================================
