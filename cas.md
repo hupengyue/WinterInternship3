@@ -1,4 +1,4 @@
-remoteLogin-webflow.xml
+remoteLogin-webflow.xml(D:\HPY\jinhua\imp\sso\cas\src\main\webapp\WEB-INF\remoteLogin-webflow.xml)
 此xml文件之中，抽象出remoteLogin登录的流程：
 
 remoteLoginAction(尝试取tgt，)，调用：101
@@ -20,6 +20,10 @@ warn（根据flowScope中的warnCookieValue的值的真与假来判断，如果�
 redirect(根据flowScope.service.getResponse(requestScope.serviceTicketId)的值的有无，如果有，那么->跳转到postRedirectDecision)
 
 postRedirectDecision(根据requestScope.response.responseType.name() == 'POST' 如果等于，->跳转到postView；如果不等于，跳转到->redirectView)
+
+postView 渲染view属性定义的那个视图，一个例子：view="postResponseView"
+
+redirectView 渲染view属性定义的那个视图，如果添加了“externalRedirect:”前缀的话，将会重定向到流程外部的页面，一个例子：view="externalRedirect:${requestScope.response.url}"
 
 ========================================================================================================================================================
 函数功能：
@@ -141,6 +145,23 @@ protected ResultEventFactorySelector.ResultEventFactory forType(Class resultType
 	行195，返回result；
 }
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+在remoteLogin-webflow.xml文件中，
+行28～行30，
+    <on-start>
+        <evaluate expression="remoteLoginAction" />
+    </on-start>
+	
+注意：<evaluate expression="">=后面的内容不是一个具体的方法的调用，而是一个类的名字，所以：这个类：RemoteLoginAction是一个bean，
+需要继承自AbstractAction父类，实现doExecute();doExecute方法是对应处理此阶段业务的方法。
+海康源代码中的注解：
+<!--  on-start标签定义了用户第一次进入流程中的预处理动作， 	该标签对应spring中的id为initialFlowSetupAction的bean。
+    	查看该bean（InitialFlowSetupAction）的代码，该类需要继承自AbstractAction。
+    	AbstractAction方法是org.springframework.webflow.action包中的类，是webflow中的基础类。
+    	该类中的doExecute方法是对应处理业务的方法，就犹如servlet中的service方法一样。
+    	该方法的参数是RequestContext对象，该参数是一个流程的容器。
+    	该方法从request中获取TGT，并且构建一个临时的service对象（不同域注册的service）。
+    	并且，将TGT和service放在FlowScope作用域中。 -->
+		
 101，RemoteLoginAction.doExecute(){
     行53：判断是否是重定向：调用：boolean redirect = ImpPropertiesManager.getInstance().getProperties("cas.redirect", "false").equals("true");
 	行57：如果redirect为真{
@@ -170,6 +191,9 @@ protected ResultEventFactorySelector.ResultEventFactory forType(Class resultType
 	
 }
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ 在remoteLogin-webflow文件中，
+ 行153，<evaluate expression="remoteAuthenticationViaFormAction.submit(flowRequestContext, messageContext)" />
+ 此时，<evaluate expression="">，=后面的内容不是一个类的名字，而是一个具体的类的方法的调用，所以：这个类RemoteAuthenticationViaFormAction：不需要从AbstractAction派生。
 103，remoteAuthenticationViaFormAction.submit(flowRequestContext, messageContext){
 
 }
@@ -364,13 +388,42 @@ public static void WebUtils.putTicketGrantingTicketInRequestScope(final RequestC
 --------------------------------------------------------------------------------------------------------------------------------------------------------
 3.2，
 --------------------------------------------------------------------------------------------------------------------------------------------------------
-3.3，HikTicketRegistry.addTicket(Ticket ticket){
+HikTicketRegistry类主要功能：ticket的管理，包括：添加（addTicket），查找（getTicket），删除（deleteTicket）
+    addTicket：将ST/TGT分类放在同一个concurrentHashMap下面；
+	getTicket：根据ticketId，到concurrentHashMap 里面取xml文件，再转换成ticket，并返回ticket；
+	deleteTicket，根据ticketId，从concurrentHashMap里面删除ticket；作为ticket的定时的清除器的实现函数，被HikTicketRegistryCleaner.run()方法行45被调用；行46，清除Ehcache缓存里面的userStatus的数据
+	
+
+继承关系：
+HikTicketRegistry extends DefaultTicketRegistry extends AbstractTicketRegistry implements TicketRegistry
+tgt对应的存储的xml的一个例子：
+DEBUG vision.apollo.cas.adaptors.auth.HikTicketRegistry - HikTicketRegistry put ticket:
+TGT-1-fesmEObqhBAdXGdGAW9PmKfXBYdrSboLuwJTZuBH6BlYmRSJgN-cas, to: Ticket_Key_Map, 
+
+xml:<?xml version="1.0" encoding="UTF-8"?>
+
+<tickets>
+  <ticket>
+    <class>TicketGrantingTicketImpl</class>
+    <expired>false</expired>
+    <authentication principal="1&amp;&amp;admin&amp;&amp; &amp;&amp; &amp;&amp; " authenticatedDate="2018-01-28 18:52:40"/>
+    <id>TGT-1-fesmEObqhBAdXGdGAW9PmKfXBYdrSboLuwJTZuBH6BlYmRSJgN-cas</id>
+    <expirationPolicy>1500000</expirationPolicy>
+    <lastTimeUsed>1517136760591</lastTimeUsed>
+    <previousLastTimeUsed>1517136760222</previousLastTimeUsed>
+    <creationTime>1517136760222</creationTime>
+    <countOfUses>0</countOfUses>
+  </ticket>
+</tickets>
+3.3，public void HikTicketRegistry.addTicket(Ticket ticket){
     行41：将输入参数ticket划分为ST/TGT，分门别类保存到同一个ConsurrentHashMap里面，根据不同的id取xml
 	3.3.1，行51，将用户的在线状态保存到Ehcache里面，调用：userStatusService.saveUserStatus(ticket.getId(), hikUsernamePasswordCredentials.getUser().getId(), hikUsernamePasswordCredentials.getUsername(), Integer.parseInt(hikUsernamePasswordCredentials.getLoginType()), 
 							                                hikUsernamePasswordCredentials.getUser().getDeptIndexCode(), hikUsernamePasswordCredentials.getClientIP(), hikUsernamePasswordCredentials.getClientMAC(), 
 							                                hikUsernamePasswordCredentials.getService()!= null ? hikUsernamePasswordCredentials.getService() : hikUsernamePasswordCredentials.getServiceIP());
     3.3.2，行64，更新用户的userStatus，调用：UserStatus userStatus =userStatusService.getUserStatus(ticket.getId());															
 }
+
+
 --------------------------------------------------------------------------------------------------------------------------------------------------------
 3.1.1，AuthenticationManagerImpl.authenticateAndObtainPrincipal(Credentials credentials){
     3.1.1.1,行84，认证登录用户，调用：boolean auth = authenticationHandler.authenticate(credentials);
@@ -762,15 +815,91 @@ Hpyps：帖子里面只有代码的片段，和主要的几个接口的设计文
     4，《SSO CAS单点系列》之 实操！轻松玩转SSO CAS就这么简单(相遇篇)
 	2016-01-08 15:09:42
 	
-hpyps:引入了cas；并介绍了一种开源的cas架构:Apereo；后文下载和使用了Apereo；体验课一下。没有剖析源代码和代码的组成架构。
+hpyps:
+    引入了cas；并介绍了一种开源的cas架构:Apereo；后文下载和使用了Apereo；体验课一下。没有剖析源代码和代码的组成架构。
 -------------------------------------------------------------------------------
 
 	《SSO CAS单点系列》之 实操！轻松玩转SSO CAS就这么简单(相识篇)
 	2016-01-12 09:47:26 
-	hpyps: tgt并没有放到session中，cas全局会话的实现并没有直接使用session机制，而是利用了cookie自己实现的，这个cookie叫做TGC，里面存放了TGTId，认证中心的服务端实现了TGC
-	《SSO CAS单点系列》之 支持Web应用跨域登录CAS（千斤干货）
-	hpyps：在原有的应用系统页面进行登录认证中心，如，不发生跳转，我们需要使用Ajax方式。而最常用的XML HttpRequest Ajax方式调用，存在一个跨域的问题。即，为了安全，Ajax本身是不允许跨域调用的。
+hpyps: 
+	tgt并没有放到session中，cas全局会话的实现并没有直接使用session机制，而是利用了cookie自己实现的，这个cookie叫做TGC，里面存放了TGTId，认证中心的服务端实现了TGC
+	cas-server-core提供的核心模块只有两个部分，一是票据ST，包括票据的产生，查询，删除，存储等各种操作。另一个是认证，提供多种认证方式。
+    作为独立运行的Web应用，CAS还需要提供与浏览器用户的交互，与需要认证的应用系统交互，这些逻辑，绝大部分放在sso/cas/src/main/java/webapp
+	CAS认证中心采用SpringMVC+Spring WebFlow实现的方式.
 	
+	CAS应用的整体架构，官方提供了一个比较清晰的架构图：
+	CAS Server分为webflow的流程抽象；ticketing模块（包括TGT和ST）；authentication认证模块，认证分为不同的方式：数据库校验，那就要和对应的数据库进行通信。
+	
+	CAS Clients：？？？
+-------------------------------------------------------------------------------
+    《SSO CAS单点系列》之 实操！轻松玩转SSO CAS就这么简单(相知篇)
+	2016-01-12 10:06:10
+	hpyps：ticketRegistryCleaner，定时任务采用Spring集成的Quartz实现？？？
+	tgt的时效是被动后验方式，在这种情况下，我们需要一个清除器来定期的清除内存中的还未经过处理的ticket。这个清除器在ticketRegistry.xml文件中定义，叫ticketRegistryCleaner，定时任务采用Spring集成的Quartz实现？？？
+	TGT的Id在客户端TGTCookie中，因此要保持全局会话，不仅服务器端的TGT这个票据对象要存在，同时，TGC这个Cookie也不能过期。在ticketGrantingTicketGenerator.xml中，缺省情况下，p:cookieMaxAge="-1"表示TGC长期有效，不需要修改，所以，只需要服务器端用Policy控制TGT的有效期就可以了。
+	
+-------------------------------------------------------------------------------
+    《SSO CAS单点系列》之 大型互联网应用基于CAS的SSO架构(精华)
+	2016-01-14 15:06:18
+	hpyps：主要介绍了为什么cas要用集群，以及用redis来实现集群的方式。
+	
+	认证中心这个关键部件通常需要进行集群，单个认证中心提供服务是非常危险的。
+	当我们使用CAS作为sso的解决方案的时候，cas server作为认证中心就会涉及到集群的问题。对cas server来说，缺省是单应用实例运行的，多实例集群运行，我们需要做特殊考虑。
+	考虑集群，就要考虑应用中有哪些点和状态相关，这些状态相关的点和应用的运行环境密切相关。在多实例运行下，运行环境是分布式的，这些状态相关的点需要考虑，在分布式环境下，如何保持状态的的一致性
+	鉴于cas的实现方式，状态相关点有两个。一是cas登录登出的流程，采用webflow实现，流程状态存储于session中。二是票据的存储，缺省是在JVM的内存中。
+	那么cas集群，我们需要保证多个实例下，session中的状态以及票据存储状态是一致的。常用的方案是共享，也就是说，在多cas实例下，他们的session和票据是共享的，这样就解决了一致性的问题。（hpyps：就如同struts2一样，controller是多实例的，所以，一个controller内部的方法共享类定义的属性的值，而不是像springmvc一样单例的，每个@RequestMapping的方法单例的，只处理本方法传入的变量的数据）
+	cas在tomcat下面运行的话，官方提出的建议是利用tomcat集群进行session的复制（session Replication）。在高并发的状态下，这种session的复制效率不是很高，节点数增多是更是如此。实战中应用很少。
+	我们可以采用共享session的技术。在笔者的实践中，则采用了另外一种更为灵活的方案。那就是session sticky技术。
+	
+-------------------------------------------------------------------------------
+	《SSO CAS单点系列》之 支持Web应用跨域登录CAS（千斤干货）
+	2016-01-15 17:07:23
+	？？？It和execution参数是什么？
+	-------------------------------------------------------------------------------
+	
+	？？？如何启用的webflow？浏览器输入：http://10.6.130.110/cas/remoteLogin?token=5D877242155AFE74E053455C920AEF7A
+	首先在cas-servlet.xml文件中
+	配置了<flow-executor>
+	flow-executor就是通过id来找出要具体执行的flow，具体有几个flow，每个flow的id都叫什么，在<flow-registry >进行详细的定义
+	
+	flowUrlHandler可以从HttpServletRequest中，根据url解析出webflow的Id，
+	
+	配置了webflow的<flow-registry >
+	里面详细定义了flow的id名字叫什么，这个id的flow对应的流程的具体的定义的文件的路径是什么，一个例子：<webflow:flow-location path="/WEB-INF/login-webflow.xml" id="login" />（flow的id为login，这个flow 的具体的流程详细见这个路径下的文件的定义：path="/WEB-INF/login-webflow.xml"）
+	-------------------------------------------------------------------------------
+	public final HandlerExecutionChain AbstractHandlerMapping.getHandler(HttpServletRequest request){
+	    行298，根据request中的url来获取处理此url的handler，调用10002，Object handler = getHandlerInternal(request);
+	}
+	-------------------------------------------------------------------------------
+	
+	10002，
+	protected Object CharacterEncodingFilter.getHandlerInternal(HttpServletRequest request){
+	    行92，从request中尝试获取一个flowId，调用10001，
+		行96，从判断是不是一个bean
+		行106，从flowRegistry里面，判断有没有一个flow的Id匹配这个flowId，如果有{
+		    行111，用此flowId，创建一个flowHandler，并且返回，调用：return createDefaultFlowHandler(flowId);
+		}
+	}
+	-------------------------------------------------------------------------------
+	函数功能：
+	尝试从request里面获取flowId
+	10001，
+	public String DefaultFlowUrlHandler.getFlowId(HttpServletRequest request){
+	
+	}
+	
+	-------------------------------------------------------------------------------
+	为什么进入了remoteLogin-webflow文件中，定义好的流程？而不是login-webflow文件中，定义的？哪个文件做了配置，以实现的区分？
+	hpyps：在原有的应用系统页面进行登录认证中心，如，不发生跳转，我们需要使用Ajax方式。而最常用的XML HttpRequest Ajax方式调用，存在一个跨域的问题。即，为了安全，Ajax本身是不允许跨域调用的。
+	而最常使用的xmlhttprequest Ajax方式，存在一个跨域的问题，即，为了安全，Ajax本身是不允许跨域调用的。
+	在应用页面中，如何达到远程登录cas的效果？摆在我们面前有两道坎儿需要克服：
+	首先是远程获取It金额execution参数值的问题。cas登录的form提交，不仅有username和password两个参数，还包括It和execution，It防止重复提交，execution保证走的同一个webflow流程。在进行远程提交的时候，我们需要远程得到cas动态产生着两个参数，从而保证能够向cas进行正确的form提交。？？？
+	
+-------------------------------------------------------------------------------
+	《SSO CAS单点系列》之 APP原生应用如何访问CAS认证中心(系列结束)
+	2016-01-20 18:09:02
+	
+-------------------------------------------------------------------------------
 	《Spring Web Flow 2.0 入门》
 	https://www.ibm.com/developerworks/cn/education/java/j-spring-webflow/index.html
 	web应用程序中的三种范围：
@@ -807,7 +936,8 @@ hpyps:引入了cas；并介绍了一种开源的cas架构:Apereo；后文下载�
 	F8，跳到下一步；
 	shift+F8，跳到下一个断点
 	Alt+F9, 运行到光标处。
-	
+	调试功能的使用方法的总结帖子：
+	http://blog.csdn.net/qq_27093465/article/details/64124330
 ========================================================================================================================================================
 #海康用的eclipse
 ##海康用的eclipse版本信息：
