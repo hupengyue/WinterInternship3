@@ -883,10 +883,14 @@ hpyps:
     //flowUrlHandler可以从HttpServletRequest中，根据url解析出webflow的Id，从而将一个请求映射到一个flow，就如同将一个url的请求映射到一个controller
     <bean id="flowUrlHandler" class="org.jasig.cas.web.flow.CasDefaultFlowUrlHandler" />
 	
+	FlowDefinition类：
+	这个类存储了flow的定义。它包含了组成flow的各个state。每个flow都有一个start-state。
 	
+	FlowRegistry类：
+	里面包含了各个flow的定义。
+	里面详细定义了flow的id名字叫什么，这个id的flow对应的流程的具体的定义的文件的路径是什么，一个例子：里面详细定义了flow的id名字叫什么，这个id的flow对应的流程的具体的定义的文件的路径是什么。
+	一个例子：<webflow:flow-location path="/WEB-INF/login-webflow.xml" id="login" />（flow的id为login，这个flow 的具体的流程详细见这个路径下的文件的定义：path="/WEB-INF/login-webflow.xml"）
 	
-	配置了webflow的<flow-registry >
-	里面详细定义了flow的id名字叫什么，这个id的flow对应的流程的具体的定义的文件的路径是什么，一个例子：<webflow:flow-location path="/WEB-INF/login-webflow.xml" id="login" />（flow的id为login，这个flow 的具体的流程详细见这个路径下的文件的定义：path="/WEB-INF/login-webflow.xml"）
 	--------------------------------------------------------------------------------------------------------------------------------------------------------------
 	函数功能：
 	    根据request，根据传入的url，查找处理此url请求的handler
