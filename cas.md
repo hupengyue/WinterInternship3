@@ -854,35 +854,62 @@ hpyps:
 -------------------------------------------------------------------------------
 	《SSO CAS单点系列》之 支持Web应用跨域登录CAS（千斤干货）
 	2016-01-15 17:07:23
-	？？？It和execution参数是什么？
+	？？？文章中提到的It和execution参数是什么？
 	-------------------------------------------------------------------------------
 	
-	？？？如何启用的webflow？浏览器输入：http://10.6.130.110/cas/remoteLogin?token=5D877242155AFE74E053455C920AEF7A
-	首先在cas-servlet.xml文件中
-	配置了<flow-executor>
-	flow-executor就是通过id来找出要具体执行的flow，具体有几个flow，每个flow的id都叫什么，在<flow-registry >进行详细的定义
+	如何启用的webflow？webFlow的框架和流程？浏览器输入：http://10.6.130.110/cas/remoteLogin?token=5D877242155AFE74E053455C920AEF7A
+	参考：http://www.studytrails.com/frameworks/spring/spring-web-flow/
+	在cas-servlet.xml文件中，需要配置如下几个重要的类：
+	FlowHandlerMapping类：
+	flowHandlerMapping完成的事情是：根据传入的url，解析出flowId，如果在flowRegistry中，可以找到与此url匹配的已经注册过的flowId，则返回一个flowHandler，
+	flowHandlerMapping需要从从flowRegistry处获知在系统中注册的有哪几个flow，根据url可以解析出flowId，便可以到flowRegistry里面查找所有程序中注册过的flow，看是否能够将此url请求匹配到中注册的某个flow上面。
+
+	FlowHandler类：
+	持有真实的flow的引用的controller helper（在FlowHandlerMapping中，如果能够在flowRegistry中找得到处理此url的flowId，那就用此flowId初始化一个flowHandler，调用：createDefaultFlowHandler(flowId)）
+	她来处理flow的执行，包括输出和异常；
+	FlowHandlerAdaptor类：
+	对于web flow的HandlerAdaptor，由他来委派工作到映射的FlowHandler
 	
-	flowUrlHandler可以从HttpServletRequest中，根据url解析出webflow的Id，
+	FlowExecutor类：
+	flow的中心类，由他来管理多个flow，包括：新flow的创建，已经存在的flow的挂起。进入spring web flow的入口。
+	flow-executor就是通过id来找出要具体执行的flow，具体有几个flow，每个flow的id都是什么，在<flow-registry >进行详细的定义
+	
+	
+    //响应请求的是处理器适配器FlowHandlerAdapter，根据查找出来的handler去执行。
+     <bean class="org.springframework.webflow.mvc.servlet.FlowHandlerAdapter"
+        p:flowExecutor-ref="flowExecutor"
+        p:flowUrlHandler-ref="flowUrlHandler" />
+ 
+    //flowUrlHandler可以从HttpServletRequest中，根据url解析出webflow的Id，从而将一个请求映射到一个flow，就如同将一个url的请求映射到一个controller
+    <bean id="flowUrlHandler" class="org.jasig.cas.web.flow.CasDefaultFlowUrlHandler" />
+	
+	
 	
 	配置了webflow的<flow-registry >
 	里面详细定义了flow的id名字叫什么，这个id的flow对应的流程的具体的定义的文件的路径是什么，一个例子：<webflow:flow-location path="/WEB-INF/login-webflow.xml" id="login" />（flow的id为login，这个flow 的具体的流程详细见这个路径下的文件的定义：path="/WEB-INF/login-webflow.xml"）
-	-------------------------------------------------------------------------------
+	--------------------------------------------------------------------------------------------------------------------------------------------------------------
+	函数功能：
+	    根据request，根据传入的url，查找处理此url请求的handler
+	返回值：
+	   一个执行链
 	public final HandlerExecutionChain AbstractHandlerMapping.getHandler(HttpServletRequest request){
 	    行298，根据request中的url来获取处理此url的handler，调用10002，Object handler = getHandlerInternal(request);
 	}
-	-------------------------------------------------------------------------------
-	
+	--------------------------------------------------------------------------------------------------------------------------------------------------------------
+	函数功能：
+        根据url，查找handler，	
 	10002，
 	protected Object CharacterEncodingFilter.getHandlerInternal(HttpServletRequest request){
-	    行92，从request中尝试获取一个flowId，调用10001，
-		行96，从判断是不是一个bean
-		行106，从flowRegistry里面，判断有没有一个flow的Id匹配这个flowId，如果有{
-		    行111，用此flowId，创建一个flowHandler，并且返回，调用：return createDefaultFlowHandler(flowId);
+	    行92，从request中解析出一个flowId，调用10001，
+		行96，判断是不是一个bean
+		行106，从flowRegistry里面，查看所有已经注册过的flow，判断有没有一个已经注册过的flow的Id能够匹配上这个flowId，如果可以匹配{
+		    行111，用此匹配的flowId，创建一个flowHandler，并且返回，调用：return createDefaultFlowHandler(flowId);
 		}
 	}
 	-------------------------------------------------------------------------------
 	函数功能：
-	尝试从request里面获取flowId
+	    从request里面获取flowId，
+		通俗的描述就是：从一个String类型的url中（http://10.6.130.110:8082/cas/remoteLogin?username=admin&password=jds32355），获取/cas之后的，又在下一个“/”之前的内容，即为“/remoteLogin”，所以解析出来的flowId就是“/remoteLogin”
 	10001，
 	public String DefaultFlowUrlHandler.getFlowId(HttpServletRequest request){
 	
