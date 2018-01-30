@@ -2,110 +2,123 @@
 #remoteLogin主要state的分析以及代码的对应：
 
 ##remoteLogin主要state的分析
+
 remoteLogin-webflow.xml(D:\HPY\jinhua\imp\sso\cas\src\main\webapp\WEB-INF\remoteLogin-webflow.xml)
 此xml文件之中，抽象出remoteLogin登录的流程：
 
-remoteLoginAction(尝试取tgt，)，调用：101
+	remoteLoginAction(尝试取tgt，)，调用：101
 
-ticketGrantingTicketExisitsCheck（检查TGT是否存在，如果存在->跳到serviceAuthorizationCheck，调用102；如果不存在->跳到isMockLogin（从cas客户端的模拟登录））
+	ticketGrantingTicketExisitsCheck（检查TGT是否存在，如果存在->跳到serviceAuthorizationCheck，调用102；如果不存在->跳到isMockLogin（从cas客户端的模拟登录））
 
-serviceAuthorizationCheck（提前检查一下要访问的service是否是本系统有的：serviceAuthorizationCheck.java: 如果没有service，直接返回success；如果有service{如果系统找不到此service，报错；如果是注册的服务但是未启用，报错；其余情况，返回success；}）如果没报错，->realSubmit
+	serviceAuthorizationCheck（提前检查一下要访问的service是否是本系统中定义过的：serviceAuthorizationCheck.java: 如果没有service，直接返回success；如果有service{如果系统找不到此service，报错；如果是注册的服务但是未启用，报错；其余情况，返回success；}）如果没报错，->realSubmit
 
-realSubmit（调用103，：remoteAuthenticationViaFormAction.submit(flowRequestContext, messageContext)，如果返回success，->跳转到sendTicketGrantingTicket（将新的TGT设置到cookie中）; 如果返回error，->跳转到remoteCallbackView报错的页面）
+	realSubmit（这个状态的入口方法，调用103，：remoteAuthenticationViaFormAction.submit(flowRequestContext, messageContext)，如果状态的入口方法，返回success，那就->跳转到sendTicketGrantingTicket（将新的TGT设置到cookie中）; 如果返回error，那就->跳转到remoteCallbackView报错的页面）
 
-sendTicketGrantingTicket(调用104，：sendTicketGrantingTicketAction.java: 此类处理TGT的创建和销毁工作：如果没有TGT，直接返回success；行37：从context中取出TGT（这是新的TGT）；行38：从cookie中能够取出TGT（这是旧的TGT）&& 旧的TGT确实存在，就把新的TGT加入到cookie中，把旧的TGT销毁掉（即：旧的TGT销毁并用新的TGT替代之）)进行完流程之后，跳到serviceCheck；
+	sendTicketGrantingTicket(这个状态的入口方法，调用104，：sendTicketGrantingTicketAction.java: 此类管理ticket，会处理TGT的创建和销毁工作：如果没有TGT，直接返回success；行37：从context中取出TGT（这是新的TGT）；行38：从cookie中能够取出TGT（这是旧的TGT）&& 旧的TGT确实存在，就把新的TGT加入到cookie中，把旧的TGT销毁掉（即：旧的TGT销毁并用新的TGT替代之）)进行完流程之后，跳到serviceCheck；
 
-serviceCheck(检查flowScope中的service是否存在（又跳转到了remoteLogin），如果存在,->跳转到generateServiceTicket（这种情况，说明是：先访问一个app（即service），发现没登录，重定向到cas进行登录，认证了用户之后，产生TGT，需要先产生ST，接着再重定向到app）；如果不存在,->跳转到casloginDesion)
+	serviceCheck(检查flowScope中的service是否存在（又跳转到了remoteLogin），如果存在，->跳转到generateServiceTicket（这种情况，说明是：先访问一个app（即service），发现没登录，重定向到cas进行登录，认证了用户之后，产生TGT，需要先产生ST，接着再重定向到app）；如果不存在,->跳转到casloginDesion)
 
-generateServiceTicket(行46：产生ST，组装一个带有此ST的url，具体调用：1.1.1，返回success)如果返回success，那么->跳转到warn
+	generateServiceTicket(行46：产生ST，组装一个带有此ST的url，具体调用：1.1.1，返回success)如果返回success，那么->跳转到warn
 
-warn（根据flowScope中的warnCookieValue的值的真与假来判断，如果为真，->跳转到showWarningView; 如果为假，->跳转到redirect）
+	warn（根据flowScope中的warnCookieValue的值的真与假来判断，如果为真，->跳转到showWarningView; 如果为假，->跳转到redirect）
 
-redirect(根据flowScope.service.getResponse(requestScope.serviceTicketId)的值的有无，如果有，那么->跳转到postRedirectDecision)
+	redirect(根据flowScope.service.getResponse(requestScope.serviceTicketId)的值的有无，如果有，那么->跳转到postRedirectDecision)
 
-postRedirectDecision(根据requestScope.response.responseType.name() == 'POST' 如果等于，->跳转到postView；如果不等于，跳转到->redirectView)
+	postRedirectDecision(根据requestScope.response.responseType.name() == 'POST' 如果等于，->跳转到postView；如果不等于，跳转到->redirectView)
 
-postView 渲染view属性定义的那个视图，一个例子：view="postResponseView"
+	postView 渲染view属性定义的那个视图，一个例子：view="postResponseView"
 
-redirectView 渲染view属性定义的那个视图，如果添加了“externalRedirect:”前缀的话，将会重定向到流程外部的页面，一个例子：view="externalRedirect:${requestScope.response.url}"
-
-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-##remoteLogin主要state的代码的对应
+	redirectView 渲染view属性定义的那个视图，如果添加了“externalRedirect:”前缀的话，将会重定向到流程外部的页面，一个例子：view="externalRedirect:${requestScope.response.url}"
 
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-函数功能：
-    构造函数
-ExternalRedirectAction.ExternalRedirectAction(final RequestContext context){
-    
-}
-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-函数功能：
-    切换transition的函数:根据前一个transition执行的结果，来判断下一步该执行哪个transition；
-	
-1007，protected void ActionState.doEnter(RequestControlContext context){
-    行101，执行action，获取执行的结果，调用：1006，Event event = ActionExecutor.execute(action, context);
-	行105，调用1007.1，context.handleEvent(event);
-	行106，返回；
-}
+##remoteLogin主要state的对应代码
 
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-1007.1，public boolean RequestControlContextImpl.handleEvent(Event event){
-    行210，返回，，调用1007.1.1，return flowExecution.handleEvent(event, this);
-}
+	函数功能：
+		构造函数
+	ExternalRedirectAction.ExternalRedirectAction(final RequestContext context){
+		
+	}
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-1007.1.1，
-public boolean FlowExecutionImpl.handleEvent(Event event){
-
-    行388，返回， ，调用1007.1.1.1，：return getActiveSessionInternal().getFlow().handleEvent(context);
-}
-
-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-
-1007.1.1.1，
-public boolean Flow.handleEvent(RequestControlContext context){
-    获取现在所处的状态：一个例子：[ActionState@267dc857 id = 'realSubmit', flow = 'remoteLogin', entryActionList = list[[empty]], exceptionHandlerSet = list[[empty]], actionList = list[[AnnotatedAction@2138976a targetAction = [EvaluateAction@700fc692 expression = remoteAuthenticationViaFormAction.submit(flowRequestContext, messageContext), resultExpression = [null]], attributes = map[[empty]]]], transitions = list[[Transition@4e40dc01 on = warn, to = warn], [Transition@6379aee on = success, to = sendTicketGrantingTicket], [Transition@6351de85 on = error, to = remoteCallbackView], [Transition@6de4af2b on = accountDisabled, to = casAccountDisabledView], [Transition@250cd642 on = mustChangePassword, to = casMustChangePassView], [Transition@1f56d8e7 on = accountLocked, to = casAccountLockedView], [Transition@729e987e on = badHours, to = casBadHoursView], [Transition@3a4becf1 on = badWorkstation, to = casBadWorkstationView], [Transition@79b6833c on = passwordExpired, to = casExpiredPassView]], exitActionList = list[[empty]]]
-	调用：1007.1.1.1.1，return currentState.handleEvent(context);
-}
-
-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-1007.1.1.1.1，
-public boolean TransitionableState.handleEvent(RequestControlContext context){
-    根据返回的transition，执行to代表的那个action，调用1007.1.1.1.1.1，：return context.execute(getRequiredTransition(context));
-}
+	函数功能：
+		切换state的函数: 
+		当start-state第一次调用此方法的时候，在行101执行start-state,并获取start-state的结果;
+		接着在行105，将上一个state执行的结果传入，并进一步判断，下一步该执行哪个state,
+		（即：<transition to="">；to指向的那个state），判断好之后，此方法又会被调用，
+		所以，此方法会被递归的调用下去，直到遇到end-state
+		
+	1007，protected void ActionState.doEnter(RequestControlContext context){
+		行101，执行state，并且，获取执行这个state的结果，调用：1006，Event event = ActionExecutor.execute(action, context);
+		行105，将上一个state执行的结果传入，并判断下一个应该执行哪个state，执行flow的中每一个state（除了第一个state）的入口，每个状态开始执行，都是从这个地方开始：调用1007.1，context.handleEvent(event);
+		行106，返回；
+	}
 
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-1007.1.1.1.1.1，
-public Transition ActionState.getRequiredTransition(RequestContext context){
-    调用1007.1.1.1.1.1.1，    
-}
+	1006，public static Event ActionExecutor.execute(Action action, RequestContext context){
+		行51，调用：Event event = action.execute(context);
+		行55，返回，行51，调用的结果：return event;
+	}
 
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-函数功能：
-    遍历this中所有的transition的数组transitions，从数组中找到与返回的结果匹配那个的那个transition
-1007.1.1.1.1.1.1，
-public Transition TransitionSet.getTransition(RequestContext context){
-    返回：一个例子[Transition@6379aee on = success, to = sendTicketGrantingTicket]
-}
+    函数功能：
+	    开始执行一个state，
+		
+	1007.1，public boolean RequestControlContextImpl.handleEvent(Event event){
+		行210，返回，，调用1007.1.1，return flowExecution.handleEvent(event, this);
+	}
+
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-1006，public static Event ActionExecutor.execute(Action action, RequestContext context){
-    行51，调用：Event event = action.execute(context);
-	行55，返回，行51，调用的结果：return event;
-}
+	1007.1.1，
+	public boolean FlowExecutionImpl.handleEvent(Event event){
+
+		行388，返回， ，调用1007.1.1.1，：return getActiveSessionInternal().getFlow().handleEvent(context);
+	}
+
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-1005，public Event AnnotatedAction.execute(RequestContext context){
-    行145，执行指定的action，获取执行的结果，调用：1004，Event result = getTargetAction().execute(context);
-	行146，返回，调用postProcessResult方法的结果，调用：return postProcessResult(result);
-}
+
+	1007.1.1.1，
+	public boolean Flow.handleEvent(RequestControlContext context){
+		获取现在所处的状态：一个例子：[ActionState@267dc857 id = 'realSubmit', flow = 'remoteLogin', entryActionList = list[[empty]], exceptionHandlerSet = list[[empty]], actionList = list[[AnnotatedAction@2138976a targetAction = [EvaluateAction@700fc692 expression = remoteAuthenticationViaFormAction.submit(flowRequestContext, messageContext), resultExpression = [null]], attributes = map[[empty]]]], transitions = list[[Transition@4e40dc01 on = warn, to = warn], [Transition@6379aee on = success, to = sendTicketGrantingTicket], [Transition@6351de85 on = error, to = remoteCallbackView], [Transition@6de4af2b on = accountDisabled, to = casAccountDisabledView], [Transition@250cd642 on = mustChangePassword, to = casMustChangePassView], [Transition@1f56d8e7 on = accountLocked, to = casAccountLockedView], [Transition@729e987e on = badHours, to = casBadHoursView], [Transition@3a4becf1 on = badWorkstation, to = casBadWorkstationView], [Transition@79b6833c on = passwordExpired, to = casExpiredPassView]], exitActionList = list[[empty]]]
+		调用：1007.1.1.1.1，return currentState.handleEvent(context);
+	}
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    函数功能：
+	    执行完这个state，返回一个result，根据返回的result，执行to指向的另一个action，
+	1007.1.1.1.1，
+	public boolean TransitionableState.handleEvent(RequestControlContext context){
+		根据返回的result，执行to指向的另一个action，调用1007.1.1.1.1.1，：return context.execute(getRequiredTransition(context));
+	}
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+	1007.1.1.1.1.1，
+	public Transition ActionState.getRequiredTransition(RequestContext context){
+		调用1007.1.1.1.1.1.1，    
+	}
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+	函数功能：
+		遍历this中所有的transition的数组transitions，从数组中找到与返回的结果匹配那个的那个transition
+
+		1007.1.1.1.1.1.1，
+	public Transition TransitionSet.getTransition(RequestContext context){
+		返回：一个例子[Transition@6379aee on = success, to = sendTicketGrantingTicket]
+	}
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+	1005，public Event AnnotatedAction.execute(RequestContext context){
+		行145，执行指定的action，获取执行的结果，调用：1004，Event result = getTargetAction().execute(context);
+		行146，返回，调用postProcessResult方法的结果，调用：return postProcessResult(result);
+	}
 
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -251,14 +264,12 @@ public void CookieRetrievingCookieGemerator.addCookie(final HttpServletRequest r
 
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-
 ========================================================================================================================================================
 
 #cas登录流程
 
-当浏览器输入：http://10.6.130.110:8087/apollo-web/web/role.action 之后
-
-代码跳转流程
+    ##第一次访问app之后，代码跳转流程
+	即，当浏览器输入：http://10.6.130.110:8087/apollo-web/web/role.action 之后，代码跳转流程：
 
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 WebStatFilter.doFilter(){
@@ -451,6 +462,7 @@ xml:<?xml version="1.0" encoding="UTF-8"?>
     <countOfUses>0</countOfUses>
   </ticket>
 </tickets>
+
 3.3，public void HikTicketRegistry.addTicket(Ticket ticket){
     行41：将输入参数ticket划分为ST/TGT，分门别类保存到同一个ConsurrentHashMap里面，根据不同的id取xml
 	3.3.1，行51，将用户的在线状态保存到Ehcache里面，调用：userStatusService.saveUserStatus(ticket.getId(), hikUsernamePasswordCredentials.getUser().getId(), hikUsernamePasswordCredentials.getUsername(), Integer.parseInt(hikUsernamePasswordCredentials.getLoginType()), 
@@ -480,7 +492,7 @@ xml:<?xml version="1.0" encoding="UTF-8"?>
 --------------------------------------------------------------------------------------------------------------------------------------------------------
 
 3.3.2，UserStatusServiceImpl.getUserStatus(String sessionId) {
-
+    
 
 }
 --------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -598,71 +610,74 @@ xml:<?xml version="1.0" encoding="UTF-8"?>
 
 ========================================================================================================================================================
 
-第二次，再次访问同一个app
+    ##第二次，再次访问同一个app，代码跳转流程
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-函数功能：
-    app向cas-service请求：刷新TGT的过期时间
 	
-10，SessionDateHandler.flushTgt(String sessionId, Principal principal, String prefixUrl) {
-		如果TGT没过期{
-			行76，刷新session的过期时间，调用：sessionDateMappingStorage.addSessionDateById(sessionId, now);
-			从principal里面取出TGT，如果TGT不为null{
-				app向cas-service请求：更新TGT的过期时间，调用：String result = CommonUtils.getResponseFromServer(url, "utf-8");    
+	函数功能：
+		app向cas-service请求：刷新TGT的过期时间
+		
+	10，SessionDateHandler.flushTgt(String sessionId, Principal principal, String prefixUrl) {
+			如果TGT没过期{
+				行76，刷新session的过期时间，调用：sessionDateMappingStorage.addSessionDateById(sessionId, now);
+				从principal里面取出TGT，如果TGT不为null{
+					app向cas-service请求：更新TGT的过期时间，调用：String result = CommonUtils.getResponseFromServer(url, "utf-8");    
+				}
+				
 			}
-			
-		}
-}
+	}
+	
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 ========================================================================================================================================================
-
-当一个登录的用户已经在cas验证过登录了，产生了TGT，再次直接登录cas或者，登录第二个app，app发现没有局部session，重定向到cas:
-
-AuthInterceptor.preHandler(HttpServletRequest request, HttpServletResponse response, Object handler){
-    行77，刷新TGT的最后更新的时间，调用：session.setAttribute(SessionConstants.TGT_LASTFLUSHTIMEINMILL, now);
-	行85，从session中取出登录的user，调用：User user = (User)session.getAttribute(SessionConstants.USER);
-	行87，如果user为null{
-	    行88：从request里面直接取出username，调用：String userName = getUsername(request, session);
-		行90，synchronized (sysObject) {
-		    从数据库里面由username找出user对象；
-			行95，行96，将user的必要信息设置到session里面
-		}
-	}
-	行103，如果user不为null{
-	    行104，从concurrentHashMap里面取出TGTId对应的xml，（如果xml为null，那就返回null）
-		如果TGT不为null{
-		    刷新TGT的最后更新的时间；
-		
-		} else（TGT对应的xml为null，说明虽然TGTId还存在着，但是这个TGT已经过期了，已经删除了TGTId对应的xml文件里）{
-		    删除这个无用的session；
-		}
-	}
-	21,行127，验证失败，重新产生和认证TGT，调用：jumpLogin(request, response);
-	行128，返回false；
+    ##在cas认证中心已经经过认证的情况下，第一次登录app2
 	
+    当一个登录的用户已经在cas验证过登录了，产生了TGT，
+	再次直接登录cas，或者登录第二个app，app发现没有局部session，重定向到cas；
+	cas发现此用户已经认证过了，产生了全局session，为app2产生对应的ST，带上ST再次访问访问spp2，app2又去请求cas验证此ST，
+	cas验证ST之后，将用户信息给app2，app2产生局部session，标识此用户已经在app2登录:
 
-}
+	AuthInterceptor.preHandler(HttpServletRequest request, HttpServletResponse response, Object handler){
+		行77，刷新TGT的最后更新的时间，调用：session.setAttribute(SessionConstants.TGT_LASTFLUSHTIMEINMILL, now);
+		行85，从session中取出登录的user，调用：User user = (User)session.getAttribute(SessionConstants.USER);
+		行87，如果user为null{
+			行88：从request里面直接取出username，调用：String userName = getUsername(request, session);
+			行90，synchronized (sysObject) {
+				从数据库里面由username找出user对象；
+				行95，行96，将user的必要信息设置到session里面
+			}
+		}
+		行103，如果user不为null{
+			行104，从concurrentHashMap里面取出TGTId对应的xml，（如果xml为null，那就返回null）
+			如果TGT不为null{
+				刷新TGT的最后更新的时间；
+			
+			} else（TGT对应的xml为null，说明虽然TGTId还存在着，但是这个TGT已经过期了，已经删除了TGTId对应的xml文件里）{
+				删除这个无用的session；
+			}
+		}
+		21,行127，验证失败，重新产生和认证TGT，调用：jumpLogin(request, response);
+		行128，返回false；
+		
+
+	}
 
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 21,
 
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-不知道怎么就跳转到了：
-CleanUserStatusTask.cleanUserStatus(){
-    行39，找到所有缓存着的userStatus
-	
-	如果userStatus的更新时间为null{
-	
-	} else {
-	    如果userStatus时间已经过期{
-		    删除这个已经过期的userStatus
+	不知道怎么就跳转到了：
+	CleanUserStatusTask.cleanUserStatus(){
+		行39，找到所有缓存着的userStatus
+		
+		如果userStatus的更新时间为null{
+		
+		} else {
+			如果userStatus时间已经过期{
+				删除这个已经过期的userStatus
+			}
 		}
 	}
-}
-
 
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -941,10 +956,11 @@ chenzhe8:
 
 ========================================================================================================================================================
 	
-#spring web flow源代码以及框架、流程、主要类的分析：
+#spring web flow相关内容
 	如何启用的webflow？webFlow的框架和流程？浏览器输入：http://10.6.130.110/cas/remoteLogin?token=5D877242155AFE74E053455C920AEF7A
 	参考：http://www.studytrails.com/frameworks/spring/spring-web-flow/
 	
+========================================================================================================================================================
 	
 ##在spring web flow框架里面，有如下几个重要的类：
 	FlowHandlerMapping类：
@@ -982,10 +998,17 @@ chenzhe8:
 	
 ========================================================================================================================================================
 
-#在spring web flow框架里面，主要流程：
-    描述：DispatcherServlet将request传给FlowHandlerMapping，FlowHandlerMapping根据request查找处理此url对应的handler，将找到的handler返回给DispatcherServlet；
-	DispatcherServlet将此handler传给FlowHandlerAdapter，执行flow文件中定义好的flow中的流程，即执行各个state。
-
+#在spring web flow框架里面，主要流程：（done）
+    
+	描述：
+	业务描述：从浏览器输入url开始，一直到选定一个flow，并开始执行这个flow的start-state状态
+	
+	代码描述：
+	DispatcherServlet将request传给FlowHandlerMapping，FlowHandlerMapping根据request查找处理此url对应的handler，
+	将找到的handler返回给DispatcherServlet；
+	DispatcherServlet将此handler传给FlowHandlerAdapter，执行flow文件中定义好的flow中的流程，即首先开始执行start-state,再依次执行各个state；
+	执行完一个state之后，会返回一个result，根据xml中的定义，根据result是什么，开决定flow，下一个会执行哪个state，即：是<transition to=""> to指向的那个state。
+    
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
     10010，
 	
@@ -1008,25 +1031,77 @@ chenzhe8:
     10006.1,
     public FlowExecutionResult FlowExecutorImpl.launchExecution(String flowId, MutableAttributeMap input, ExternalContext context){
 	    行138，由flowId，获取flow的完整的定义：flowDefinition里面包含了所有的会转换的state（LinkedHashSet），（在调用这个函数的过程中，进行了定义flow文件的解析工作，解析flow中每个state的名字，并且建立每个状态，将所有的状态组装成flow）调用：FlowDefinition flowDefinition = definitionLocator.getFlowDefinition(flowId);
-		行139，flow开始执行了，调用10006.2,：flowExecution.start(input, context);
-		
+		行140，flow开始执行了，调用10006.2,：flowExecution.start(input, context);		
 	
 	
 	}
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
-10006.2，
+    
+	10006.2，
 	public void FlowExecutionImpl.start(MutableAttributeMap input, ExternalContext externalContext){
 		行222，flow开始执行的函数，调用10006.3，：start(flow, input, requestContext);
 	}
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
-10006.3，
-    void FlowExecutorImpl.start(Flow flow, MutableAttributeMap input, RequestControlContext context){
-	    行366，flow的开始执行，调用：flow.start(context, input);
+    
+	10006.3，
+    void FlowExecutionImpl.start(Flow flow, MutableAttributeMap input, RequestControlContext context){
+	    行366，flow的开始执行，调用10006.4，：flow.start(context, input);
 	}
+	
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+    10006.4
+	public void Flow.start(RequestControlContext context, MutableAttributeMap input){
+	    行534，开始执行flow中的start-state, 调用10006.5，：startActionList.execute(context);
+		行535，？？？与10006.5一样的调用链条，调用10006.5.1，：startState.enter(context);
+	}
+	
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+    
+	10006.5，
+    public void ActionList.execute(RequestContext context){
+	    行155，用ActionExecutor来执行传入的action，调用10006.6，：ActionExecutor.execute((Action) it.next(), context);
+	}
+
+	
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+	10006.6
+    public static Event ActionExecutor.execute(Action action, RequestContext context){
+	    行51，执行状态，调用10006.7，：Event event = action.execute(context);
+	}
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+	10006.7，
+    public Event AnnotatedAction.execute(RequestContext context){
+	    行145，调用10006.8，：Event result = getTargetAction().execute(context);
+	}
+	
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+	
+	10006.8，
+	public final Event AbstractAction.execute(RequestContext context){
+	    行188，调用10006.9，：result = doExecute(context);
+	}
+	
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+	10006.9，
+	protected Event EvaluateAction.doExecute(RequestContext context){
+	    行77，调用10006.9.1，：return ActionExecutor.execute((Action) result, context);
+	}
+	
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+	10006.9.1，
+	public static Event ActionExecutor.execute(Action action, RequestContext context){
+	    行51，执行指定的action，调用：10006.8，Event event = action.execute(context);
+	}
+	
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
     函数功能：
-	    从系统自获取所有的handlerAdaptor，查看哪个handlerAdaptor支持这个handler
+	    从系统获取所有的handlerAdaptor，查看哪个handlerAdaptor支持这个handler
 	10005，
 	protected HandlerAdapter DispatcherServlet.getHandlerAdapter(Object handler){
 	    行1120，从this.handlerAdaptors获取所有的handlerAdaptor，遍历，看哪个handlerAdaptor支持这个传入的handler
@@ -1048,7 +1123,7 @@ chenzhe8:
 	   一个执行链HandlerExecutionChain
 	10003，
 	public final HandlerExecutionChain AbstractHandlerMapping.getHandler(HttpServletRequest request){
-	    行298，根据request中的url来获取处理此url的handler，调用10002，Object handler = getHandlerInternal(request);
+	    行298，根据request中的url来获取处理此url的handler，调用： 10002，Object handler = getHandlerInternal(request);
 		行310，调用:创建一个执行链，并返回：return createDefaultFlowHandler(flowId);
 	}
 --------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -1162,3 +1237,20 @@ Git的强大在于其分支管理功能的强大，和无与伦比的速度，�
 ##git的实现原理：
 
 ##git的源码分析：
+
+========================================================================================================================================================
+#Ehcache缓存
+
+##ehcache的特点：
+
+    ehcache提供多种缓存策略：内存和磁盘，分布式存储
+
+##Ehcache3.0的缓存的使用的生命周期的一个过程
+    1，静态的方法CacheManagerBuilder.newCacheManagerBuilder将返回一个新的org.ehcache.config.builders.CacheManagerBuilder的实例。
+	2，当我们要构建一个缓存管理器的时候，使用CacheManagerBuilder来创建一个预配置（pre-configured）缓存
+	3，根据需求，通过CacheManager创建出新的cache，实例化和完整实例化的cache将通过CacheManger getCache api 返回。
+	使用put方法来存储数据，
+	使用get方法来获取数据。
+	可以通过cacheManager.removeCache 方法来获取Cache，但是Cache取出来以后，CacheManager将会删除自身保存的Cache实例。
+	close方法将会释放CacheManager所管理的缓存资源。
+========================================================================================================================================================
