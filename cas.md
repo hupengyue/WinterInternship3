@@ -341,6 +341,7 @@ remoteLogin-webflow.xml(D:\HPY\jinhua\imp\sso\cas\src\main\webapp\WEB-INF\remote
 		根据有无TGT做不同的事情：（TGT的有无即代表全局会话是否存在，即：TGTId对应的XML文件存在，标识该用户已经在CAS登录和验证）
 		如果没有TGT，那么就先认证用户的存在性，如果认证成功，那么产生TGT；
 		如果有TGT，那么，如果没有ST，那么，依据TGT产生ST。
+		
 	AuthenticationViaFormAction.submit(){
 		行85～行95：取TGTIdList的过程：
 		行86，利用WebUtils从context中取出TGTIdList，调用：String ticketGrantingTicketIds = WebUtils.getTicketGrantingTicketId(context);
@@ -360,7 +361,7 @@ remoteLogin-webflow.xml(D:\HPY\jinhua\imp\sso\cas\src\main\webapp\WEB-INF\remote
 				跳转到行136：销毁这个TGT的对象，调用this.centralAuthenticationService.destroyTicketGrantingTicket(ticketGrantingTicketId);
 			}
 		}
-		3，行150：如果没有TGT，就产生TGT，（调用：this.centralAuthenticationService.createTicketGrantingTicket(credentials)）
+		3，行150：如果没有TGT，就产生TGT，调用：this.centralAuthenticationService.createTicketGrantingTicket(credentials)
 		4，并且，同时将产生的TGT设置到requestScope里面，调用：
 		WebUtils.putTicketGrantingTicketInRequestScope(context, this.centralAuthenticationService.createTicketGrantingTicket(credentials));
 		
@@ -418,16 +419,24 @@ remoteLogin-webflow.xml(D:\HPY\jinhua\imp\sso\cas\src\main\webapp\WEB-INF\remote
 	}
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------
-	
+	函数功能：
+	    CentralAuthenticationService.createTicketGrantingTicket方法的具体实现。
+		先到数据库里面查找此登录的用户，如果能找到，那就产生TGT，
 	3，
-	CentralAuthenticationServiceImpl.createTicketGrantingTicket(final Credentials credentials){
-		3.1, 行497：认证登录的用户，调用this.authenticationManager.authenticate(credentials);
+	public String CentralAuthenticationServiceImpl.createTicketGrantingTicket(final Credentials credentials){
+		3.1, 行497：认证登录的用户，并且返回principle，里面含有登录用户的重要字段，调用this.authenticationManager.authenticate(credentials);
 		3.2，行500：如果认证成功：那么就产生TGT对象
 		3.3，行505：将构造好的TGT对象添加到concurrentHashMap，同时将userStatus保存到Ehcache缓存中；调用：this.ticketRegistry.addTicket(ticketGrantingTicket);
 		返回TGT的id值
 
 	}
-
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+    函数功能：
+	    
+	3.1，
+	public final Authentication AbstractAuthenticationManager.authenticate(final Credentials credentials){
+	    行41，认证登录的用户并且获取Principal：3.1.1,调用：authenticateAndObtainPrincipal
+	}
 --------------------------------------------------------------------------------------------------------------------------------------------------------
 	4,
 	public static void WebUtils.putTicketGrantingTicketInRequestScope(final RequestContext context, final String ticketValue) {
@@ -448,8 +457,8 @@ remoteLogin-webflow.xml(D:\HPY\jinhua\imp\sso\cas\src\main\webapp\WEB-INF\remote
 	
 	3.1，
 	AuthenticationManagerImpl(AbstractAuthenticationManager).authenticate(final Credentials credentials){
-		3.1.1, 行41，认证登录的用户并且获取Principal：调用authenticateAndObtainPrincipal(credentials);
-		返回Principal对象；
+		3.1.1, 行41，认证登录的用户，并且获取登录用户的重要字段即：Principal：调用：final Pair<AuthenticationHandler, Principal> pair = authenticateAndObtainPrincipal(credentials);
+		返回ImmutableAuthentication对象，关键信息还是principle；调用：return new ImmutableAuthentication(authentication.getPrincipal(), authentication.getAttributes());
 	}
 	
 --------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -467,43 +476,76 @@ remoteLogin-webflow.xml(D:\HPY\jinhua\imp\sso\cas\src\main\webapp\WEB-INF\remote
 	DEBUG vision.apollo.cas.adaptors.auth.HikTicketRegistry - HikTicketRegistry put ticket:
 	TGT-1-fesmEObqhBAdXGdGAW9PmKfXBYdrSboLuwJTZuBH6BlYmRSJgN-cas, to: Ticket_Key_Map, 
 
-	xml:<?xml version="1.0" encoding="UTF-8"?>
+	<?xml version="1.0" encoding="UTF-8"?>
 
 	<tickets>
 	  <ticket>
 		<class>TicketGrantingTicketImpl</class>
 		<expired>false</expired>
-		<authentication principal="1&amp;&amp;admin&amp;&amp; &amp;&amp; &amp;&amp; " authenticatedDate="2018-01-28 18:52:40"/>
-		<id>TGT-1-fesmEObqhBAdXGdGAW9PmKfXBYdrSboLuwJTZuBH6BlYmRSJgN-cas</id>
+		<authentication principal="1&amp;&amp;admin&amp;&amp; &amp;&amp; &amp;&amp; " authenticatedDate="2018-02-01 18:06:29"/>
+		<id>TGT-3-fnYztwdj4TBCtMjUcHsfrFfyAcfs4bNVVK5aeU29AY7NHRFchs-cas</id>
 		<expirationPolicy>1500000</expirationPolicy>
-		<lastTimeUsed>1517136760591</lastTimeUsed>
-		<previousLastTimeUsed>1517136760222</previousLastTimeUsed>
-		<creationTime>1517136760222</creationTime>
+		<lastTimeUsed>1517479666078</lastTimeUsed>
+		<previousLastTimeUsed>0</previousLastTimeUsed>
+		<creationTime>1517479666078</creationTime>
 		<countOfUses>0</countOfUses>
 	  </ticket>
 	</tickets>
 
 	3.3，
 	public void HikTicketRegistry.addTicket(Ticket ticket){
+		行39，将Ticket对象转换为一个xml文件
 		行41：将输入参数ticket划分为ST/TGT，分门别类保存到同一个ConsurrentHashMap里面，根据不同的id取xml
-		3.3.1，行51，将用户的在线状态保存到Ehcache里面，调用：userStatusService.saveUserStatus(ticket.getId(), hikUsernamePasswordCredentials.getUser().getId(), hikUsernamePasswordCredentials.getUsername(), Integer.parseInt(hikUsernamePasswordCredentials.getLoginType()), 
+		行45，从LocalThreadContext里面取出credentials，
+		
+		如果credentials不为null{
+		    行47，清理用户的credentials，LocalThreadContext.clear();
+			3.3.1，行51，将用户的在线状态保存到Ehcache里面，调用：userStatusService.saveUserStatus(ticket.getId(), hikUsernamePasswordCredentials.getUser().getId(), hikUsernamePasswordCredentials.getUsername(), Integer.parseInt(hikUsernamePasswordCredentials.getLoginType()), 
 																hikUsernamePasswordCredentials.getUser().getDeptIndexCode(), hikUsernamePasswordCredentials.getClientIP(), hikUsernamePasswordCredentials.getClientMAC(), 
 																hikUsernamePasswordCredentials.getService()!= null ? hikUsernamePasswordCredentials.getService() : hikUsernamePasswordCredentials.getServiceIP());
+		}
 		3.3.2，行64，更新用户的userStatus，调用：UserStatus userStatus =userStatusService.getUserStatus(ticket.getId());															
 	}
 
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------
-
-	3.1.1，
-	AuthenticationManagerImpl.authenticateAndObtainPrincipal(Credentials credentials){
-		3.1.1.1,行84，认证登录用户，调用：boolean auth = authenticationHandler.authenticate(credentials);
+    函数功能：
+	    认证登录的用户（数据库查找用户），并且，获取Principal（将credentials解析为Principal）
+		
+	3.1.1
+	protected Pair<AuthenticationHandler, Principal> AuthenticationManagerImpl.authenticateAndObtainPrincipal(final Credentials credentials){
+		
+		行76，遍历系统中所有的authenticationHandler，所有的authenticationHandler从AuthenticationHandler派生，比如：HikUsernamePasswordHandler implements AuthenticationHandler
+		如果这个authenticationHandler支持credentials{
+		    3.1.1.1,行84，用这个支持此credentials的authenticationHandler，来认证登录用户，调用：boolean auth = authenticationHandler.authenticate(credentials);
+		}
 		3.1.1.2,行122，程序如果能运行到这行，说明，授权用户成功，将credentials解析为Principal，调用final Principal principal = credentialsToPrincipalResolver.resolvePrincipal(credentials);返回Principal
-		如果构造Principal对象成功：那么就用Principal对象构造一个Pair对象，并返回；
+		如果构造Principal对象成功：那么就用实际支持此credentials的AuthenticationHandler类的Class对象和Principal对象构造一个Pair对象，并返回；调用：return new Pair<AuthenticationHandler,Principal>(authenticatedClass, principal);
 	}
 
+	
 --------------------------------------------------------------------------------------------------------------------------------------------------------
+拓展：
+    责任链模式（设计模式）：
+	举一个例子：
+	    在玩具工厂的生产车间里面，流水线就是责任链。
+		在流水线的生产部分，假如一个玩具飞机有外壳装配员，引擎装配员，螺旋桨装配员，模型包装员组成。
+		当这个物件飞机流到哪个员工那里，谁就必须负责处理掉他负责的那个部分。
+		这部分安装完成之后，流就进入下一个环节，直到流中所有的环节完成。这个是生成的责任链。
+		这种叫做“不纯的责任链”，也就是责任链的每个环节，对应的员工都要处理。
+		
+		而还有另外一种叫做“纯的责任链”。例子如下：
+		还有一个叫做“质量责任链”。质量的检测分为多个环节， 外壳检测，引擎检测，螺旋桨检测，包装检测。
+		当产品流到这个环节对应的员工那里，这个员工只负责处理自己负责的那一块，如果有问题，直接拎出来，如果没问题，传给下一个检测员，直到所有的检测完成。
+		这个叫做“纯的责任链”。
+		区别就是：
+		生产责任链每个人都会处理，并处理一个部分。而质量责任链要经过判断，要么处理掉，要么不处理，流下去。
 
+	caiyida对于公司代码的解释:
+	原始的任务链模式，每个任务有一个成员变量是下一个任务节点的
+	但是这个是所有任务放到list，使用统一的support方法判断是不是支持这个任务
+	
+--------------------------------------------------------------------------------------------------------------------------------------------------------
 	函数功能：
 		保存一些登录用户的必要的信息到Ehcache里面
 	3.3.1，UserStatusServiceImpl.saveUserStatus(String sessionId, String userId, 
@@ -530,18 +572,21 @@ remoteLogin-webflow.xml(D:\HPY\jinhua\imp\sso\cas\src\main\webapp\WEB-INF\remote
 
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------
-
+    函数功能：
+	   授权用户的过程：即是到数据库中，查找是否有可以同时满足传入的认证信息的用户，比如，传入用户名和密码，那就到数据库里面查找是否同时有此用户名和密码的用户，如果有，返回true，否则，返回false
+		
 	3.1.1.1，
-	HikUsernamePasswordHandler.authenticate(credentials){
+	public boolean HikUsernamePasswordHandler.authenticate(Credentials credentials){
 		行209：授权用户的过程就是到数据库里面找有此用户名和密码的用户，如果能找到，返回true；
 	}
 	
 --------------------------------------------------------------------------------------------------------------------------------------------------------
-	
+	函数功能：
+	    
 	3.1.1.2，
 	Principal HikcredentialsToPrincipalResolver(AbstractPersonDirectoryCredentialsToPrincipalResolver).credentialsToPrincipalResolver.resolvePrincipal(credentials){
-		行44，将credentials中主要的信息拼接为stringbuilder，调用final String principalId = extractPrincipalId(credentials);
-		然后用此String对象构造一个SimplePrincipal对象，并返回；
+		行44，将credentials中主要的信息拼接为String，每个重要的字段用“&&”来分割的。一个例子：principleId = “1&&admin&& && && ”；调用final String principalId = extractPrincipalId(credentials);
+		然后用此String对象构造一个SimplePrincipal对象，并返回；调用：return new SimplePrincipal(principalId, convertedAttributes);
 	}
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -1367,7 +1412,7 @@ Git的强大在于其分支管理功能的强大，和无与伦比的速度，�
 #hpy简历：
 
 远程跨域单点登录流程开发：
-	负责远程登录完整流程的抽象与定义，基于Ticket的CAS认证机制，TGT, ST管理，已认证用户登录状态缓存管理，
+	负责远程登录完整流程的抽象与定义；建立基于责任链模式的可扩展的远程登录的认证体系；基于Ticket的CAS认证机制，TGT, ST管理；已认证用户登录状态缓存管理，
 	主要用到的技术：Spring Web Flow流程抽象，flowScope范围下的Cookie-Session会话状态维持，Ehcache缓存管理等技术
 
 基于Token的远程跨域单点登录流程改造
@@ -1375,6 +1420,14 @@ Git的强大在于其分支管理功能的强大，和无与伦比的速度，�
 
 用户登录时间管理模块的开发：
     数据存储，pg源码
+	对HikUsernamePasswordHandler.java的authenticate()方法进行改造，
+		UserServiceImpl.java
+一个非admin用户登录的时候：
+
+	只调用的方法是：
+findTimeTemplateByUserId(String userId)；
+所以：返回值：timeTemplateList
+用胡鹏跃的查找逻辑实现即可：
 	
 ========================================================================================================================================================
 	
@@ -1413,8 +1466,14 @@ oa 18280482470!Zz
 	//JitGatewayUtil.auth()方法，行751，输出：
 	解析网关返回的认证响应报文结束
 	
-	
+	AuthenServlet.doGet()方法，行107，输出：
 	身份认证成功，认证信息正常返回！
 	
+	AuthenServlet.doGet()方法，行109，输出：
 	身份认证结束！
+	
+	
+	
+
+
 	
