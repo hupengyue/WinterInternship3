@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="true" scanPeriod="10 seconds">
+
+  <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+  <!-- spring boot项目名称 -->
+  <property name="springAppName" value="was" />
+  <property name="log.charset" value="utf8" /> <!-- 日志编码 -->
+  <!--日志文件的保存路径,首先查找系统属性-Dlog.dir,如果存在就使用；否则，在当前目录下创建名为logs目录做日志存放的目录 -->
+  <property name="log.base" value="${catalina.base}/logs" />
+  <property name="log.max.size" value="25MB" /> <!-- 日志文件大小,超过这个大小将重新创建,可以根据实际情况调整-->
+  <property name="log.max.index" value="20" />  <!-- 日志最大循环保留个数，可以根据实际情况调整-->
+
+  <!-- 日志格式-->
+  <property name="FILE_LOG_PATTERN"
+            value="%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %p ${springAppName} [%thread] [%logger{80}] %X{X-HIK_TRACE:-} %X{X-HIK_ERROR_CODE:-} - %msg %n "/>
+
+  <!--控制台输出 -->
+  <appender name="stdout" class="ch.qos.logback.core.ConsoleAppender">
+    <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+      <!-- Minimum logging level to be presented in the console logs-->
+      <level>DEBUG</level>
+    </filter>
+    <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+      <Pattern>${FILE_LOG_PATTERN}</Pattern>
+    </encoder>
+  </appender>
+
+  <!-- 用来保存输出DEBUG级别的日志 -->
+  <appender name="file.debug" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <File>${log.base}/${springAppName}.debug.log</File><!-- 设置日志不超过${log.max.size}时的保存路径，注意如果
+            是web项目会保存到Tomcat的bin目录 下 -->
+    <!-- 滚动记录文件，先将日志记录到指定文件，当符合某个条件时，将日志记录到其他文件。 -->
+    <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
+      <FileNamePattern>${log.base}/${springAppName}.debug.%i.log</FileNamePattern>
+      <MinIndex>1</MinIndex>
+      <MaxIndex>${log.max.index}</MaxIndex>
+    </rollingPolicy>
+    <triggeringPolicy
+            class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+      <MaxFileSize>${log.max.size}</MaxFileSize>
+    </triggeringPolicy>
+    <!-- 日志输出的文件的格式 -->
+    <encoder>
+      <pattern>${FILE_LOG_PATTERN}</pattern>
+      <charset>utf8</charset>
+    </encoder>
+    <!-- 下面为配置输出DEBUG级别以上的日志 -->
+    <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+      <level>DEBUG</level>
+    </filter>
+  </appender>
+
+  <!-- 这也是用来保存输出INFO级别以上的日志 -->
+  <appender name="file.info" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <File>${log.base}/${springAppName}.info.log</File>
+    <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
+      <FileNamePattern>${log.base}/${springAppName}.info.%i.log</FileNamePattern>
+      <MinIndex>1</MinIndex>
+      <MaxIndex>${log.max.index}</MaxIndex>
+    </rollingPolicy>
+    <triggeringPolicy
+            class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+      <MaxFileSize>${log.max.size}</MaxFileSize>
+    </triggeringPolicy>
+    <encoder>
+      <pattern>${FILE_LOG_PATTERN}</pattern>
+      <charset>utf8</charset>
+    </encoder>
+    <!-- 下面为配置输出INFO级别以上的日志 -->
+    <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+      <level>INFO</level>
+    </filter>
+  </appender>
+
+  <!-- 只用保存输出error级别的日志 -->
+  <appender name="file.error"
+            class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <File>${log.base}/${springAppName}.error.log</File>
+    <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
+      <FileNamePattern>${log.base}/${springAppName}.error.%i.log</FileNamePattern>
+      <MinIndex>1</MinIndex>
+      <MaxIndex>${log.max.index}</MaxIndex>
+    </rollingPolicy>
+    <triggeringPolicy
+            class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+      <MaxFileSize>${log.max.size}</MaxFileSize>
+    </triggeringPolicy>
+    <encoder>
+      <pattern>${FILE_LOG_PATTERN}</pattern>
+      <charset>utf8</charset>
+    </encoder>
+    <!-- 下面为配置只输出error级别的日志 -->
+    <filter class="ch.qos.logback.classic.filter.LevelFilter">
+      <level>ERROR</level>
+      <onMatch>ACCEPT</onMatch>
+      <onMismatch>DENY</onMismatch>
+    </filter>
+  </appender>
+
+  <!-- 不丢失日志.默认的,如果队列的80%已满,则会丢弃TRACT、DEBUG、INFO级别的日志 -->
+  <!-- 更改默认的队列的深度,该值会影响性能.默认值为256 -->
+  <!-- 添加附加的appender,最多只能添加一个 -->
+  <appender name="file.async" class="ch.qos.logback.classic.AsyncAppender">
+    <discardingThreshold>0</discardingThreshold>
+    <queueSize>256</queueSize>
+    <includeCallerData>true</includeCallerData>
+    <appender-ref ref="file.debug" />
+  </appender>
+
+  <appender name="file.async.info" class="ch.qos.logback.classic.AsyncAppender">
+    <discardingThreshold>0</discardingThreshold>
+    <queueSize>256</queueSize>
+    <includeCallerData>true</includeCallerData>
+    <appender-ref ref="file.info" />
+  </appender>
+
+  <!-- 自己的工程 pandora 调试时设为debug日志输出，发布时修改成INFO-->
+  <logger name="org.springframework" level="ERROR"/>
+  <logger name="org.apache.cxf.service" level="ERROR"/>
+  <logger name="com.alibaba" level="WARN"/>
+  <logger name="vision.apollo" level="WARN"/>
+  <logger name="org.apache" level="ERROR"/>
+  <logger name="httpclient" level="ERROR"/>
+  <logger name="org.jasig.cas" level="WARN"/>
+  <logger name="org.hibernate.tool.hbm2ddl" level="INFO"/>
+  <logger name="org.hibernate" level="ERROR"/>
+  <logger name="kafka" level="ERROR"/>
+  <logger name="freemarker" level="INFO"/>
+  <logger name="com.github.zkclient" level="WARN"/>
+  <logger name="org.I0Itec.zkclient" level="WARN"/>
+  <logger name="com.hikvision.shark.module.realtimepass" level="INFO"/>
+  <logger name="com.hikvision.shark.tools" level="INFO"/>
+  <logger name="org.quartz" level="WARN"/>
+  <logger name="com.hikvision.shark.module.detector.sync.service.task" level="INFO"/>
+  <logger name="com.hikvision.shark.mq" level="INFO"/>
+  <logger name="com.hikvision.security" level="WARN"/>
+  <!-- root 设为INFO 以关掉Hibernate 和 spring 的debug日志输出-->
+  <root level="INFO">
+    <appender-ref ref="stdout" /> <!--  标识这个appender将会添加到这个logger -->
+    <appender-ref ref="file.async.info" />
+    <appender-ref ref="file.debug" />
+    <appender-ref ref="file.error" />
+  </root>
+</configuration>
