@@ -202,7 +202,7 @@ remoteLogin-webflow.xml(D:\HPY\jinhua\imp\sso\cas\src\main\webapp\WEB-INF\remote
 		
 	注意：<evaluate expression="">=后面的内容不是一个具体的方法的调用，而是一个类的名字，所以：这个类：RemoteLoginAction是一个bean，
 	需要继承自AbstractAction父类，实现doExecute();doExecute方法是对应处理此阶段业务的方法。
-	海康源代码中的注解：
+	公司源代码中的注解：
 	<!--  on-start标签定义了用户第一次进入流程中的预处理动作， 	该标签对应spring中的id为initialFlowSetupAction的bean。
 			查看该bean（InitialFlowSetupAction）的代码，该类需要继承自AbstractAction。
 			AbstractAction方法是org.springframework.webflow.action包中的类，是webflow中的基础类。
@@ -883,7 +883,7 @@ chenzhe8:
 	这些请求，都是系统之间的交互，不经过用户浏览器。系统要有根据sessionId访问session的能力。同时，在认证中心中，还需要维护全局会话ID和已登录系统本地局部会话ID的关系，以便认证中心能够通知已登录的系统进行登出处理。
 
 	2,CAS还允许直接校验非login.jsp页面传过来的用户名和密码的校验请求。这个功能是用于非web应用的SSO，这在后面的桌面SSO中会用到的。（https://yq.aliyun.com/articles/338905）
-	hpyps：对应于海康的remoteLogin登录的流程。remoteLogin还可以进行改造。
+	hpyps：对应于公司的remoteLogin登录的流程。remoteLogin还可以进行改造。
 
 
 ========================================================================================================================================================
@@ -1288,9 +1288,9 @@ chenzhe8:
 	
 ========================================================================================================================================================
 
-#海康用的eclipse
+#公司用的eclipse
 
-##海康用的eclipse版本信息：
+##公司用的eclipse版本信息：
 	Eclipse Java EE IDE for Web Developers.
 
 	Version: Luna Release (4.4.0)
