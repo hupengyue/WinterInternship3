@@ -201,62 +201,65 @@ public boolean UnifyFieldMappingAOImpl .processDBField(FieldMappingUnifyParamSO 
 3，
 点击“发布”按钮。
 函数功能：
-    保存一个排期的相关数据，到表中<delta_page_publish_job>。（注意，和排期到指定执行时刻，开始执行排期有本质的不同）
+    保存一个排期的相关数据，到表中<delta_page_publish_job>。（注意，和排期到指定执行时刻，"开始执行排期"有本质的不同）
 public ResultDO<?> UtcpScheduleService.publish (BaseRequest request) {
-行1065-行1069，从输入参数中拿出scheduleInfo，并转换为ScheduleDO对象；
-行1070，从ScheduleDO对象中获取inputType；
-行1074，3.1，？？？，调用：utcpScheduleGenerator.publish(scheduleDO, publishResult, DeltaDatasetDO.InputTypeEnum.getValue(inputType));
-行1083，3.2，？？？根据datasetId取dataset对象，调用DeltaDatasetDO dataset = deltaDatasetManagerV2.findDeltaDatasetById(dRule.getDatasetId());
-行1084，填充data对象，保存到返回值中；调用，3.3，getDataMap(dRule, data, dataset);
+    行1065-行1069，从输入参数中拿出scheduleInfo，并转换为ScheduleDO对象；
+    行1070，从ScheduleDO对象中获取inputType；
+    行1074，3.1，？？？，调用：utcpScheduleGenerator.publish(scheduleDO, publishResult, DeltaDatasetDO.InputTypeEnum.getValue(inputType));
+    行1083，3.2，？？？根据datasetId取dataset对象，调用DeltaDatasetDO dataset = deltaDatasetManagerV2.findDeltaDatasetById(dRule.getDatasetId());
+    行1084，填充data对象，保存到返回值中；调用，3.3，getDataMap(dRule, data, dataset);
 }
 -------------------------------------------------------------------------------------------------
 3.1，
 函数功能：
+
 public void UtcpScheduleGenerator.publish(final ScheduleDO scheduleDO, final ResultDO<DeltaRuleDO> result,                       final InputTypeEnum inputType) {
-行1154，调用3.1.1，
+    行1154，调用3.1.1，UtcpScheduleGenerator.publish
 }
 -------------------------------------------------------------------------------------------------
 3.1.1，
 函数功能：
 public void UtcpScheduleGenerator.publish(final ScheduleDO scheduleDO, final DataContentVO dataContentVO,                       final ResultDO<DeltaRuleDO> result, final InputTypeEnum inputType) {
-行847-行859，取RuleDO对象（表示规则）；调用3.1.1.0，getDeltaRuleInfo
-行868，校验规则，调用3.1.1.1，deltaRuleManagerV2.validateRule(ruleDO);
-行877，根据ruleDO对象中的datasetId查询DeltaDataset对象；
-行891，从DeltaDataset对象中，取出DeltaDatasetAttr对象；
-行895，如果是“个性化”{
-行912，根据uplusSceneId查询UplusSceneDO对象（描述运营配置的数据场景，包括数据集，排期，投放等相关信息配置）；
-行913，将一些配置信息保存到UplusSceneDO对象中；调用：3.1.1.1，deltaDatasetManagerV2.buildDataSourceConfig(uplusSceneDO, dataset, datasetAttr, category, fieldColumnMapping, uplusList);
-行921-行925，如果newUplusIdSet中不包含这个id，那么就从dataSourceConfigMap中删除掉。
-}
-行944，如果是“？？？类型4”{
-}
-行1006，如果是“赛马”{
-行1007，检查必填字段(*标注)有没有填写数据，调用：3.1.1.2，boolean success = deltaDatasetContentTempManagerV2.verifyRequiredField(dataset);
-}
-行1013-行1022，获取activityId的值，设置到dataset中；
-行1023-行1026，更新RmcResource的一行记录的“流程模板”字段的值；
-行1027-行1030，更新RmcResource的一行记录的“个性化推荐扩充参数”字段的值；
-行1031，根据业务场景，生成流程代码。调用3.1.1.3，datasetAttr = initWorkflowAttr(inputType.getCodeValue(), entityType, ruleDO, dataset, datasetAttr, needNewDelyId,dsc_ModuleId);
-行1034-行1038，更新或者新增DeltaRuleDO对象到数据库里面；
-行1039，更新或者插入DeltaRuleSchedule，更新DeltaDatasetDO，调用，3.1.1.4，updateScheduleInfo(ruleDO,dataset);
-行1061，？？？，调用3.1.1.5，deltaRuleAO.finishRuleInfo(ruleDO, ruleDO.getId(), reSort, conditionParams);
-行1062，？？？，3.1.1.6，涉及到临时表和正式表的保存操作。调用：com.alibaba.biz.command.result.Result subResult = datasetAOImplV2.subTemp(ruleDO.getDatasetId(), false);
-行1072，？？？，发布商品的时候通知竞品，调用，notifyOnlineMsg(ruleDO);
-行1079，提交页面发布任务，调用3.1.1.7，this.pagePublishJobProducer.commitPagePublishJob(pageId, DeltaAdminEnv.getEnv(), creator);
+    行847-行859，取排期RuleDO对象；调用3.1.1.0，getDeltaRuleInfo
+    行868，校验排期，调用3.1.1.1，deltaRuleManagerV2.validateRule(ruleDO);
+    行877，根据ruleDO对象中的datasetId查询DeltaDataset对象；
+    行891，从DeltaDataset对象中，取出DeltaDatasetAttr对象；
+    行895，如果是“个性化”{
+        行912，根据uplusSceneId查询UplusSceneDO对象（描述运营配置的数据场景，包括数据集，排期，投放等相关信息配置）；
+        行913，将一些配置信息保存到UplusSceneDO对象中；调用：3.1.1.1，deltaDatasetManagerV2.buildDataSourceConfig(uplusSceneDO, dataset, datasetAttr, category, fieldColumnMapping, uplusList);
+        行921-行925，如果newUplusIdSet中不包含这个id，那么就从dataSourceConfigMap中删除掉。
+    }
+    行944，如果是“？？？类型4”{
+    
+	}
+    行1006，如果是“赛马”{
+    行1007，检查必填字段(*标注)有没有填写数据，调用：3.1.1.2，boolean success = deltaDatasetContentTempManagerV2.verifyRequiredField(dataset);
+    }
+    行1013-行1022，获取activityId的值，设置到dataset中；
+    行1023-行1026，更新RmcResource的一行记录的“流程模板”字段的值；
+    行1027-行1030，更新RmcResource的一行记录的“个性化推荐扩充参数”字段的值；
+    行1031，根据业务场景，生成流程代码。调用3.1.1.3，datasetAttr = initWorkflowAttr(inputType.getCodeValue(), entityType, ruleDO, dataset, datasetAttr, needNewDelyId,dsc_ModuleId);
+    行1034-行1038，更新或者新增DeltaRuleDO对象到数据库里面；
+    行1039，更新或者插入DeltaRuleSchedule，更新DeltaDatasetDO，调用，3.1.1.4，updateScheduleInfo(ruleDO,dataset);
+    行1061，？？？，调用3.1.1.5，deltaRuleAO.finishRuleInfo(ruleDO, ruleDO.getId(), reSort, conditionParams);
+	行1062，？？？，3.1.1.6，涉及到临时表和正式表的保存操作。调用：com.alibaba.biz.command.result.Result subResult = datasetAOImplV2.subTemp(ruleDO.getDatasetId(), false);
+	行1072，？？？，发布商品的时候通知竞品，调用，notifyOnlineMsg(ruleDO);
+    行1079，提交页面发布任务，调用3.1.1.7，this.pagePublishJobProducer.commitPagePublishJob(pageId, DeltaAdminEnv.getEnv(), creator);
 }
 -------------------------------------------------------------------------------------------------
 3.1.1.0，
 函数功能：从页面获取规则数据
 public DeltaRuleDO UtcpScheduleGenerator.getDeltaRuleInfo(ScheduleDO scheduleDO, DataContentVO dataContentVO,
                                         InputTypeEnum inputType) throws Exception {
-行266-行270，检查资源位是否存在；
-行271-行280，检查页面是否存在，是否下线；
-如果是静态{}
-else{
-    从scheduleDO里面拿出必要的数据；ruleId
-}
-行311-行383，根据ruleId查询DeltaRuleDO，进而构建DeltaRule对象；用于返回；
+    行266-行270，检查资源位是否存在；
+    行271-行280，检查页面是否存在，是否下线；
+    如果是静态{}
+    else{
+        从scheduleDO里面拿出必要的数据；ruleId
+    }
+    行311-行383，根据ruleId查询DeltaRuleDO，进而构建DeltaRule对象；用于返回；
 
+    
 }
 
 -------------------------------------------------------------------------------------------------
@@ -359,6 +362,7 @@ public List<Pair<String,Long>> GrubScheduleProcessor.selectTasks(String bizGroup
 10.1.1，
 函数功能：
     查询没有被加锁的pageId的列表，并对一条pageId记录进行加锁；
+	
 public List<com.tmall.utcp.core.dto.Pair<String,Long>> DeltaPagePublishJobDAOImpl. findPageIdByLock(String ownSign, String bizGroup, Integer timeFly) throws DAOException {
     行116，用当前时间戳作为版本号；
     行118，查询数据库中没有被加锁的pageId的列表；
@@ -380,7 +384,7 @@ public boolean GrubScheduleProcessor.execute(Pair<String,Long> sub, String ownSi
 public DefaultResultSupport<String> GrubScheduleProcessor.publishPage(String pageId, String ownSign, Date executingTime) {
     一，执行规则，生成publishJobList：一个页面包含一个资源位的列表，一个资源位包含一个排期的列表；
 	行159，查询每个页面对应的资源位的列表；List<RmcResourceDO> rmcResourceDOList = this.rmcResourceManager.findLbRmcResourceDOByZebraPageId(pageId);
-    行166，根据资源位之间的依赖关系，拓扑排序之后，生成一个图；（后面楼层间去重使用）；
+    行166，根据资源位之间的依赖关系，拓扑排序之后，生成一个图；（？？？后面楼层间去重使用）；
     行171-行193，遍历每一个资源位{
 	    行173，得到每个资源位的排期的信息；
 		行175，得到每个资源位对应的需要执行的排期的列表List<DeltaRuleDO> currentNeedHandlerRuleList = resourceRuleInfo.getCurrentNeedHandlerRuleList();
@@ -396,6 +400,7 @@ public DefaultResultSupport<String> GrubScheduleProcessor.publishPage(String pag
 10.1.2.1.7，
 函数功能：
     执行一个资源位的一个排期的入口函数
+	
 public DefaultResultSupport<DeltaPublishJobDO> processRule(DeltaRuleDO rule, Date executingTime, ResourceRuleInfo resourceRuleInfo) throws Exception {
     准备数据，rule->request->hsfRequest->context->context结合ruleJobHandler->执行完成结果放于context里面；
 	行293，真正执行rule。RuleJobHandler类里面有一个List<DataHandler> dataValves，依次执行列表中每个valve，有：数据准备valve，赛马排序valve，去重valve，各种过滤valve，生成发布任务valve，调用10.1.2.1.7.1，ruleJobHandler.execute(context);
@@ -410,6 +415,7 @@ public DefaultResultSupport<String> process(String pageId, List<DeltaPublishJobD
 -------------------------------------------------------------------------------------------------
 10.1.2.1.7.1，
 函数功能：
+    对一个排期执行一系列操作（赛马排序，去重，各种过滤，重排序，生成PublishJob）的入口函数。
 public void RuleJobHandler.execute(Context context) throws Exception {
     行39，遍历List<DataHandler>中每个DataHandler{
         行48，调用基类的handle()，其实就是调用每个子类的invoke()方法，每个子类的invoke()方法，就是一个ruleProcess的环节；dataValve.handle(context);子类列表（10.1.2.1.7.1.1，DataInitDataValve准备数据，10.1.2.1.7.1.2，SortDataValve赛马排序，10.1.2.1.7.1.3，RemoveDuplicateDataValve去重，10.1.2.1.7.1.4，AbstractIllegalFilterDataPipeline各种过滤，10.1.2.1.7.1.5，RePosDataValve字段补全，10.1.2.1.7.1.6，GeneratePublishJobDataValve生成要投出去的数据）；
@@ -462,7 +468,7 @@ private void DefaultSortHandler.processFetchIndexJob(Context context, List<Entit
 -------------------------------------------------------------------------------------------------
 10.1.2.1.7.1.2.1.1.1，
 函数功能：
-    
+    补全字段；
 FieldStandardlizelHandler.invoke(){
     行97，输入entityList和name字段的名字，补全entityList的此name字段下的值，调用10.1.2.1.7.1.2.1.1.1.1，DataResolve.invoke(context,entityList,new String[]{name});//entityfield 批量调用
 	行101-行111，给每个entity从小到大依次写一个分数；
@@ -508,10 +514,10 @@ ItemBrandSpuDataServidce.getDatas(){
 10.1.2.1.7.1.2.1.2，
 函数功能：
     对商品的列表进行快速排序
+	
 void DefaultSortHandlerprivate.processSortJob(List<Entity> entityList) {
     快速排序；
 }
-	
 
 -------------------------------------------------------------------------------------------------
 10.1.2.1.7.1.3，
@@ -536,6 +542,7 @@ public List<Entity> PageFiltHandler.handle(Context context, List<Entity> inputEn
 10.1.2.1.7.1.4，
 函数功能：
     各种过滤操作的入口函数。（入口：AbstractDataPipeline，会依次执行dataValves）
+	
 public void AbstractDataPipeline.handle(Context context) throws Exception {
     行58，调用, 10.1.2.1.7.1.4.1，invoke(context)方法;
 }
@@ -544,6 +551,7 @@ public void AbstractDataPipeline.handle(Context context) throws Exception {
 
 函数功能：
     依次执行DataHandler 中的每个dataValve
+	
 public void AbstractDataPipeline.invoke(Context context) throws Exception {
     依次执行DataHandler 中的每个dataValve；
 	行70，调用10.1.2.1.7.1.4，handle()方法；
@@ -655,6 +663,7 @@ IllegalInstallmentItemFilterValve.invoke(){
 -------------------------------------------------------------------------------------------------
 10.1.2.1.7.1.4.10，
 函数功能：
+
 ItemDiscountDataValue.invoke(){
 
 }
@@ -739,4 +748,142 @@ private boolean processFetchValue(DeltaRuleDO deltaRule, Long ruleId, List<Integ
 }
 
 -------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+================================================================================================
+20180622
+注意：
+
+各种过滤的入口函数都是invoke()方法，通过AbstractDataPipeline的invoke()进行依次执行的。
+
+每个FilterDataPipeline的invoke方法只是做筛选条件的准备工作。
+
+每一次实际执行过滤操作，都是在AbstractIllegalFilterDataPipeline的doFilter()方法里面执行的，而且，分为是否勾选了”同分组有限替换“。
+
+流程图代码
+
+@startuml
+
+|AbstractDataPipeline|
+start
+:invoke()方法中
+依次执行
+DataHandler
+中的每个
+dataValve;
+|#AntiqueWhite|onlineFilterDataValve|
+:构建筛选条件
+condition，
+用于脚本过滤;
+:实际执行过滤操作;
+|AbstractIllegalFilterDataPipeline|
+:传入一个筛选条件，
+根据筛选条件
+condition，
+从maindata数据中
+选择出符合条件
+的元素;
+:如果勾选了”同分组
+优先替换“，那么，
+用同一分组的备数据
+顶替掉主数据
+ReplaceEntityHandler;
+:否则，主数据中
+符合筛选条件的
+直接过滤掉;
+|#AntiqueWhite|ReplaceEntityHandler|
+:数据准备，取出主数据
+mainData，备用
+数据bakData，主
+数据中需要替换
+掉的数据列表
+needReplaceList；
+:对备用数据做过滤;
+:在主数据对应的
+位置，直接用某个
+备用数据，覆盖掉
+需要替换的主数据.
+:备用数据列表中
+删除这个备用元素;
+:如果(!sameShopReplace)，
+那么, 将经过一番
+替换的主数据列表
+依据每个元素的
+分数进行排序;
+|onlineFilterDataValve|
+:返回;
+
+|TagsFilterDataValve|
+:过滤不带特定标签
+的商品/商家;
+
+|AbstractDataPipeline|
+:invoke();
+
+|#AntiqueWhite|PriceDeclareFilterDataValve|
+:是否参加价格申报过滤，
+当前判断逻辑为判断tmc_tags;
+|AbstractDataPipeline|
+:invoke();
+
+
+
+|FakeTradePunishValve|
+:虚假交易商家处罚;
+|AbstractDataPipeline|
+:invoke();
+
+
+
+|#AntiqueWhite|ActivityShopFilterDataValve|
+:过滤掉非活动商家;
+|AbstractDataPipeline|
+:invoke();
+
+
+|DuplicateFilterDataValve|
+
+
+|#AntiqueWhite|BlackRoomFilterDataValve|
+
+
+
+|CouponEffectiveFilterDataValve|
+
+
+
+
+|#AntiqueWhite|ItemDiscountDataValue|
+
+
+
+
+|IllegalInstallmentItemFilterValve|
+
+
+
+
+|#AntiqueWhite|FodderDataFilterValve|
+
+
+
+|GuiPeiDataValve|
+
+
+
+
+stop
+
+@enduml
+
+
+================================================================================================
+
 
