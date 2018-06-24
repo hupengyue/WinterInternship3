@@ -438,6 +438,7 @@ public void SortDataValve.invoke(Context context) throws Exception {
 10.1.2.1.7.1.2.1，
 函数功能：
     对数据源按照指标进行打分排序
+	
 public List<Entity> DefaultSortHandler.invoke(Context context, List<Entity> entityList, Map<String, Object> param) {
     行74，取指标，调用10.1.2.1.7.1.2.1.1，processFetchIndexJob(context, entityList, param);
     行76，只是依据每个商品的得分进行快速排序，调用10.1.2.1.7.1.2.1.2，processSortJob(entityList);
@@ -447,14 +448,61 @@ public List<Entity> DefaultSortHandler.invoke(Context context, List<Entity> enti
 10.1.2.1.7.1.2.1.1，
 函数功能：
     商品列表在每一个指标之下打分，结合每个指标的权重，算出每个商品的总分数。
+	
 private void DefaultSortHandler.processFetchIndexJob(Context context, List<Entity> entityList, Map<String, Object> param) {
     遍历每一个排序的指标{
-        行85，补全数据；依据字段的名字和要补充哪些商品，得到这些商品关于这个字段的一个“分数”；
+        行85，补全数据；依据字段的名字和要补充entity的列表，得到这些entity关于这个字段之下的一个“分数”；调用10.1.2.1.7.1.2.1.1.1，
         遍历每一个商品或者店铺{
 		    将这个字段之下的分数*此字段的权重，加入到总数中，便于后面进行排序；
         }
     }
 
+}
+
+-------------------------------------------------------------------------------------------------
+10.1.2.1.7.1.2.1.1.1，
+函数功能：
+    
+FieldStandardlizelHandler.invoke(){
+    行97，输入entityList和name字段的名字，补全entityList的此name字段下的值，调用10.1.2.1.7.1.2.1.1.1.1，DataResolve.invoke(context,entityList,new String[]{name});//entityfield 批量调用
+	行101-行111，给每个entity从小到大依次写一个分数；
+	行125-行138，如果归一化操作是”对数归一“，那么，{
+	    将这个分数区间进行归一化，对数归一？？？
+	} else（即：不是对数归一的情况）{
+	    将entityList的所有商品的分数归一化到[0.0-100.0]这个区间；
+	}
+}
+-------------------------------------------------------------------------------------------------
+10.1.2.1.7.1.2.1.1.1.1，
+函数功能：
+    字段补全，入口方法。
+DataResolve.invoke(){
+    行43，遍历需要补全字段的每个entity{
+	    检察这个entity是否已经有field这个字段了，如果已经有了，那么，继续处理下一个entity；
+		行49，如果entity没有这个字段，取这个字段的相关的配置信息；FieldConfig fd = FieldFactory.getField(entityType, field);
+	}
+	行85，取出可以补全这个字段的DataService；
+	行88-行102，将要获取此字段值的entity的id全都保存到ids列表里面；
+	行115，将要补全的字段的名字写入paramMap里面；例子："_resolvefields_":"itemBrandId"；
+    行122，调用对应的service，去查询ids（商品的列表），某个字段之下的每个商品对应的值；调用10.1.2.1.7.1.2.1.1.1.1.1，：Map<String/*entityId*/, Entity/*已经补全好相应字段的entity*/> newEntities = dataService.batchGet(entityType, ids, paramMap, context);
+	}
+}
+-------------------------------------------------------------------------------------------------
+10.1.2.1.7.1.2.1.1.1.1.1，
+函数功能：
+    对于某个字段，批量获取entity列表的字段内容。入口方法。
+public Map<String, Entity> DeltaDataServiceBase.batchGet(String entityType,List<String> ids,Map<String, Object> paramMap,Context cont) throws AdaptException{
+    行122，补全entity列表之下的这个字段的数值，其实调用的是子类的getDatas()方法，10.1.2.1.7.1.2.1.1.1.1.1.1，Map<String, Entity> datas = this.getDatas(ids, paramMap);比如，要补全的字段的名字是itemBrandId，那么，调用的子类就是：ItemBrandSpuDataServidce.getDatas()
+
+}
+-------------------------------------------------------------------------------------------------
+10.1.2.1.7.1.2.1.1.1.1.1.1，
+函数功能：
+    获取商品的spuId和brandId信息；
+	
+ItemBrandSpuDataServidce.getDatas(){
+    行53，真正的查询字段数值的过程，调用，itemResultDO = itemQueryServiceClient.queryItemById(LangUtil.getLong(id), queryItemOptionsDO);
+	行60-行77，从查询结果中获取需要补全的字段的数值；
 }
 -------------------------------------------------------------------------------------------------
 10.1.2.1.7.1.2.1.2，
@@ -472,11 +520,12 @@ void DefaultSortHandlerprivate.processSortJob(List<Entity> entityList) {
 public void RemoveDuplicateDataValve.invoke(Context context) throws Exception {
     准备数据；
     根据排期ruleId，数据datasetId，得到这个排期对应的主库的商品列表，
-    行59，取这些素材，在数据库里面上次赛马时保存好的排序信息，调用mergeEntities()
-    行61，对主库商品列表进行去重，调用PageFiltHandler.handle();
+    行59，从数据库里面,取出这些素材，上次赛马时保存好的排序信息，调用mergeEntities()；
+    行61，对主库商品列表进行去重，调用10.1.2.1.7.1.3.1，PageFiltHandler.handle()；
 
 }
 -------------------------------------------------------------------------------------------------
+10.1.2.1.7.1.3.1，
 函数功能：
 
 public List<Entity> PageFiltHandler.handle(Context context, List<Entity> inputEntitys, Map<String, Object> param) {
@@ -486,8 +535,150 @@ public List<Entity> PageFiltHandler.handle(Context context, List<Entity> inputEn
 -------------------------------------------------------------------------------------------------
 10.1.2.1.7.1.4，
 函数功能：
-    各种过滤操作的入口函数。（入口：AbstractIllegalFilterDataPipeline，会依次执行dataValves）
+    各种过滤操作的入口函数。（入口：AbstractDataPipeline，会依次执行dataValves）
+public void AbstractDataPipeline.handle(Context context) throws Exception {
+    行58，调用, 10.1.2.1.7.1.4.1，invoke(context)方法;
+}
+-------------------------------------------------------------------------------------------------
+10.1.2.1.7.1.4.1，
 
+函数功能：
+    依次执行DataHandler 中的每个dataValve
+public void AbstractDataPipeline.invoke(Context context) throws Exception {
+    依次执行DataHandler 中的每个dataValve；
+	行70，调用10.1.2.1.7.1.4，handle()方法；
+	但是这次handle()方法在行58，会调用每个DataHandler.invoke()；例子：调用OnlineFilterDataValve.invoke()方法；
+}
+-------------------------------------------------------------------------------------------------
+10.1.2.1.7.1.4.2，
+函数功能：
+    过滤非有效数据(下架商品/被处罚商家)
+	
+onlineFilterDataValve.invoke(){
+    行42，构建筛选条件condition，用于脚本过滤；例子condition="(e.get('REMOVED') != null && e.get('REMOVED'))"；
+    行55，实际执行过滤操作，调用10.1.2.1.7.1.4.2.1，doFilter(deltaRule, dataset, condition, LifeCircleEventTypeEnum.ONLINE_FILTER, context);
+}
+-------------------------------------------------------------------------------------------------
+10.1.2.1.7.1.4.2.1，
+函数功能：
+    各种Filter都会调用这个doFilter()方法。doFilter()方法根据各种Filter传入的筛选条件condition，从maindata中筛选出符合条件的元素，保存到needFilter列表里面，这个needFilter只在”同分组优先替换“的逻辑中使用，needFilter列表用于记录主数据中哪些元素需要被备用数据去顶替掉。
+	
+protected void AbstractIllegalFilterDataPipeline.doFilter(DeltaRule deltaRule, DataSet dataset, StringBuffer condition, LifeCircleEventTypeEnum eventType, Context context) throws Exception {
+	行120，传入一个筛选条件，根据筛选条件condition，从maindata数据中选择出符合条件的元素；一个例子：condition=(e.get('REMOVED') != null && e.get('REMOVED'))，通过执行groovy脚本的形式，从mainData中得到符合筛选条件的元素列表保存到needFilter中，调用，dataset.select("mainData", "needFilter", Where.get().add(new Script(condition.toString())));
+	行122，如果needFilterList不为空{
+	    如果勾选了”同分组优先替换“，那么{
+		    行128，用同一分组的备数据顶替掉主数据，调用10.1.2.1.7.1.4.2.1.1，ReplaceEntityHandler.invoke();
+		} else{
+		    行135，主数据中符合筛选条件的直接过滤掉，调用，dataset.filter("mainData", Where.get().add(new Script(condition.toString())));
+		}
+	}
+
+}
+-------------------------------------------------------------------------------------------------
+10.1.2.1.7.1.4.2.1.1，
+函数功能：
+    勾选”同分组优先替换“，用同一分组的备数据去顶替被过滤掉的主数据；
+	
+public List<Entity> ReplaceEntityHandler.invoke(Context cont, List<Entity> entityList, Map<String, Object> param) {
+    行49-行67，数据准备，取出主数据mainData，备用数据bakData，主数据中需要替换掉的数据列表needReplaceList；
+	行69，对备用数据做过滤；
+	行74-行88，在主数据对应的位置，直接用某个备用数据，覆盖掉需要替换的主数据。遍历主数据的每一个元素，如果这个元素在needReplaceList里面的话，那么{
+	    遍历备用数据每一个元素，{
+		    如果备用数据可以顶替主数据元素，那么{
+			    备用数据列表中删除这个备用元素；
+				在主数据列表中当前这个主数据位置，用备用数据覆盖原来的主数据元素；
+			}
+		}
+	}
+	行91，如果(!sameShopReplace)？？？，那么{
+	    将经过一番替换的主数据列表依据每个元素的分数进行排序；
+	}
+}
+-------------------------------------------------------------------------------------------------
+10.1.2.1.7.1.4.3，
+函数功能：
+    过滤不带特定标签的商品/商家
+
+TagsFilterDataValve.invoke(){
+    行54-行59，构建筛选条件condition；
+	行60，实际执行过滤操作，调用10.1.2.1.7.1.4.2.1，doFilter(deltaRule, dataset, condition, LifeCircleEventTypeEnum.ONLINE_FILTER, context);
+}
+-------------------------------------------------------------------------------------------------
+10.1.2.1.7.1.4.4，
+函数功能：
+    是否参加价格申报过滤，当前判断逻辑为判断tmc_tags
+	
+PriceDeclareFilterDataValve.invoke(){
+    行84-行119，构建筛选条件condition；例子：
+	condition=( e.get('tmc_tags') == null || !((Set)e.get('tmc_tags')).contains(19577) || ( !((Set)e.get('tmc_tags')).contains(19577) &&  !((Set)e.get('tmc_tags')).contains(96834) &&  !((Set)e.get('tmc_tags')).contains(86018) &&  !((Set)e.get('tmc_tags')).contains(300018132)  ) )&& ( (( e.get('secKillTag') == null || !((String)e.get('secKillTag')).equals("big") ) && ( e.get('tags') == null || (!((Set)e.get('tags')).contains(19577) && !((Set)e.get('tags')).contains(96834) && !((Set)e.get('tags')).contains(86018) &&  !((Set)e.get('tags')).contains(300018132) ) ))&& ( e.get('shopTags') == null || ( !((Set)e.get('shopTags')).contains(35585)  ) ) )
+
+}
+-------------------------------------------------------------------------------------------------
+10.1.2.1.7.1.4.5，
+函数功能：
+    虚假交易商家处罚
+
+FakeTradePunishValve.invoke(){
+
+}
+-------------------------------------------------------------------------------------------------
+10.1.2.1.7.1.4.6，
+函数功能：
+    过滤掉非活动商家
+
+ActivityShopFilterDataValve.invoke(){
+
+}
+-------------------------------------------------------------------------------------------------
+10.1.2.1.7.1.4.7，
+函数功能：
+    过滤非有效数据(重复)
+
+DuplicateFilterDataValve.invoke(){
+
+}
+-------------------------------------------------------------------------------------------------
+10.1.2.1.7.1.4.8，
+函数功能：
+
+BlackRoomFilterDataValve.invoke(){
+
+}
+-------------------------------------------------------------------------------------------------
+10.1.2.1.7.1.4.9，
+函数功能：
+    过滤非有效数据(下架商品/被处罚商家)
+
+IllegalInstallmentItemFilterValve.invoke(){
+
+}
+-------------------------------------------------------------------------------------------------
+10.1.2.1.7.1.4.10，
+函数功能：
+ItemDiscountDataValue.invoke(){
+
+}
+-------------------------------------------------------------------------------------------------
+10.1.2.1.7.1.4.11，
+函数功能：
+
+CouponEffectiveFilterDataValve.invoke(){
+
+}
+-------------------------------------------------------------------------------------------------
+10.1.2.1.7.1.4.12，
+函数功能：
+
+GuiPeiDataValve.invoke(){
+
+}
+-------------------------------------------------------------------------------------------------
+10.1.2.1.7.1.4.13，
+函数功能：
+
+FodderDataFilterValve.invoke(){
+
+}
 -------------------------------------------------------------------------------------------------
 10.1.2.1.7.1.5，
 函数功能：
