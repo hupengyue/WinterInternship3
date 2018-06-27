@@ -382,6 +382,7 @@ public ProcessResult GrubScheduleProcessor.process(LongTimeJobContext context) {
 10.1，
 函数功能：
     从数据库中选取合适的页面，随后要发布这个页面所有的排期
+	
 public List<Pair<String,Long>> GrubScheduleProcessor.selectTasks(String bizGroup, String ownSign,Integer timeFly)  {
     行93，数据库中查询合适的页面，以进行排期的发布；数据库用时间戳上行锁，调用10.1.1，list = deltaPagePublishJobDAO.findPageIdByLock(ownSign,bizGroup,timeFly);
 	行127，执行任务，发布页面内所有的资源位的数据，调用10.1.2，execute(sub, DeltaAdminEnv.getEnv(), bizGroup);；
@@ -391,9 +392,9 @@ public List<Pair<String,Long>> GrubScheduleProcessor.selectTasks(String bizGroup
 函数功能：
     查询没有被加锁的pageId的列表，并对一条pageId记录进行加锁；
 	
-public List<com.tmall.utcp.core.dto.Pair<String,Long>> DeltaPagePublishJobDAOImpl. findPageIdByLock(String ownSign, String bizGroup, Integer timeFly) throws DAOException {
-    行116，用当前时间戳作为版本号；
-    行118，查询数据库中没有被加锁的pageId的列表；
+public List<com.tmall.utcp.core.dto.Pair<String,Long>> DeltaPagePublishJobDAOImpl.findPageIdByLock(String ownSign, String bizGroup, Integer timeFly) throws DAOException {
+    行116，获取当前时间戳，后面作为版本号；
+    行118，查询数据库中没有被加锁的页面pageId的列表；
     行125，尝试对某个pageId进行加锁操作，调用，int count = executeUpdate("DeltaPagePublishJob.tryAcquireLock", paramMap, route);如果加锁成功，那么，返回成功加锁的pageId；
 }
 -------------------------------------------------------------------------------------------------
@@ -402,17 +403,26 @@ public List<com.tmall.utcp.core.dto.Pair<String,Long>> DeltaPagePublishJobDAOImp
     
 public boolean GrubScheduleProcessor.execute(Pair<String,Long> sub, String ownSign, String bizGroup) throws Exception {
     行335，如果当前线程对pageId加锁之后，其他线程没有对它再次进行加锁，那么{
-        行336，发布这个页面所有的资源位的排期，调用10.1.2.1，DefaultResultSupport<String> resultSupport = this.publishPage(sub.first, ownSign, null);
+        行336，发布这个页面所有的资源位的有效的排期，调用10.1.2.1，DefaultResultSupport<String> resultSupport = this.publishPage(sub.first, ownSign, null);
     }
 }
 -------------------------------------------------------------------------------------------------
 10.1.2.1，
 函数功能：
     
+补充：
+	从天猫客户端来看，打开一个页面之后，各个资源位是线性排列的，但实际上，一个页面上的各个资源位是有依赖关系的，是运营操作者搭建页面的时候定义好的依赖关系，所以，一个页面中所有的排期，根据依赖关系，其实形成的是一个树状图，比如：
+	                              楼层A
+								/       \
+						     楼层B     楼层C
+						    /    \      /    \
+					   楼层D  楼层E   楼层F  楼层G
+	假设：楼层B是鞋子，楼层D是男鞋，楼层E是女鞋，所以，三个楼层之间有依赖关系，形成一棵多叉树，依据定义好的依赖关系，对所有的节点进行拓扑排序，先对排序靠前的节点进行去重，拿到去重之后的结果，再对排序
+	
 public DefaultResultSupport<String> GrubScheduleProcessor.publishPage(String pageId, String ownSign, Date executingTime) {
     一，执行规则，生成publishJobList：一个页面包含一个资源位的列表，一个资源位包含一个排期的列表；
 	行159，查询每个页面对应的资源位的列表；List<RmcResourceDO> rmcResourceDOList = this.rmcResourceManager.findLbRmcResourceDOByZebraPageId(pageId);
-    行166，根据资源位之间的依赖关系，拓扑排序之后，生成一个图；（？？？后面楼层间去重使用）；
+    行166，根据资源位之间的依赖关系，拓扑排序之后，生成一个图；（后面楼层间去重会使用到）；
     行171-行193，遍历每一个资源位{
 	    行173，得到每个资源位的排期的信息；
 		行175，得到每个资源位对应的需要执行的排期的列表List<DeltaRuleDO> currentNeedHandlerRuleList = resourceRuleInfo.getCurrentNeedHandlerRuleList();
@@ -539,6 +549,7 @@ private void DefaultSortHandler.processFetchIndexJob(Context context, List<Entit
 10.1.2.1.7.1.2.1.1.1，
 函数功能：
     依据一个字段和entity的列表，进行补全字段；
+	
 FieldStandardlizelHandler.invoke(){
     行97，输入entityList和name字段的名字，补全entityList的此name字段下的值，调用10.1.2.1.7.1.2.1.1.1.1，DataResolve.invoke(context,entityList,new String[]{name});//entityfield 批量调用
 	行101-行111，给每个entity从小到大依次写一个分数；
@@ -552,6 +563,7 @@ FieldStandardlizelHandler.invoke(){
 10.1.2.1.7.1.2.1.1.1.1，
 函数功能：
     字段补全，入口方法。
+	
 DataResolve.invoke(){
     行43，遍历需要补全字段的每个entity{
 	    检察这个entity是否已经有field这个字段了，如果已经有了，那么，继续处理下一个entity；
@@ -561,12 +573,13 @@ DataResolve.invoke(){
 	行88-行102，将要获取此字段值的entity的id全都保存到ids列表里面；
 	行115，将要补全的字段的名字写入paramMap里面；例子："_resolvefields_":"itemBrandId"；
     行122，调用对应的service，去查询ids（商品的列表），某个字段之下的每个商品对应的值；调用10.1.2.1.7.1.2.1.1.1.1.1，：Map<String/*entityId*/, Entity/*已经补全好相应字段的entity*/> newEntities = dataService.batchGet(entityType, ids, paramMap, context);
-	}
+	
 }
 -------------------------------------------------------------------------------------------------
 10.1.2.1.7.1.2.1.1.1.1.1，
 函数功能：
     对于某个字段，批量获取entity列表的字段内容。入口方法。
+	
 public Map<String, Entity> DeltaDataServiceBase.batchGet(String entityType,List<String> ids,Map<String, Object> paramMap,Context cont) throws AdaptException{
     行122，补全entity列表之下的这个字段的数值，其实调用的是子类的getDatas()方法，10.1.2.1.7.1.2.1.1.1.1.1.1，Map<String, Entity> datas = this.getDatas(ids, paramMap);比如，要补全的字段的名字是itemBrandId，那么，调用的子类就是：ItemBrandSpuDataServidce.getDatas()
 
@@ -617,9 +630,11 @@ protected void mergeEntities(List<String> entityIdList, Long ruleId, Byte type, 
 public List<Entity> PageFiltHandler.handle(Context context, List<Entity> inputEntitys, Map<String, Object> param) {
     行61，如果数据集的类型是“其他”，那么，不进行去重操作；
 	行67，如果当前排期本身有定投规则（定向地区和人群），不与其他规则进行去重；
-	行72-行81，取出当前这个排期资源位依赖的更高级别的资源位的列表；
-	行82-行99，取出每个资源位的entity的列表，即，取得高级别的资源位已经执行“去重操作”完成的结果数据；（由于在调度的时候已经能够保证高级别的资源位优先执行完成，而且，分配到同一组机器上面，所以，这里只需要取到当前已经执行完的当前资源位依赖的高级别资源位的数据，作为去重操作的源数据；）
-    行101-行110，如果当前资源位（即，楼层）的商品，包含上面楼层已经出现过的商品，那么给这些商品打上一个去重原因的标记（"被页面全局去重"）；
+	行72-行81，取出当前这个排期资源位依赖的更高级别的资源位的列表dependencyRuleDOs；
+	行82-行99，遍历dependencyRuleDOs，{
+	    取出每个资源位的entity的列表，加入到ids里面，即，取得当前资源位依赖的每个高级别的资源位已经执行“去重操作”完成的结果数据集，；（由于在调度的时候已经能够保证高级别的资源位优先执行完成，而且，分配到同一组机器上面，所以，这里只需要取到当前已经执行完的当前资源位依赖的高级别资源位的数据，作为去重操作的源数据；）
+	}
+    行101-行110，遍历当前资源位的每个entity，如果上面楼层已经出现过的商品（即ids），包含这个entity，那么给这些商品打上一个去重原因的标记（"被页面全局去重"）；
 	行112，遍历本排期的数据集，去掉打标记的entity；
 }
 -------------------------------------------------------------------------------------------------
@@ -656,15 +671,14 @@ onlineFilterDataValve.invoke(){
     各种Filter都会调用这个doFilter()方法。doFilter()方法根据各种Filter传入的筛选条件condition，从maindata中筛选出符合条件的元素，保存到needFilter列表里面，这个needFilter只在”同分组优先替换“的逻辑中使用，needFilter列表用于记录主数据中哪些元素需要被备用数据去顶替掉。
 	
 protected void AbstractIllegalFilterDataPipeline.doFilter(DeltaRule deltaRule, DataSet dataset, StringBuffer condition, LifeCircleEventTypeEnum eventType, Context context) throws Exception {
-	行120，传入一个筛选条件，根据筛选条件condition，从maindata数据中选择出符合条件的元素；一个例子：condition=(e.get('REMOVED') != null && e.get('REMOVED'))，通过执行groovy脚本的形式，从mainData中得到符合筛选条件的元素列表保存到needFilter中，调用，dataset.select("mainData", "needFilter", Where.get().add(new Script(condition.toString())));
-	行122，如果needFilterList不为空{
+	行120，传入一个筛选条件，根据筛选条件condition，从maindata数据中选择出符合条件的元素；一个例子：condition=(e.get('REMOVED') != null && e.get('REMOVED'))，通过执行groovy脚本的形式，从mainData中select出符合筛选条件的元素列表保存到needFilter中，就像数据库的select操作一样的，调用，dataset.select("mainData", "needFilter", Where.get().add(new Script(condition.toString())));
+	行122，如果筛选出来的列表needFilterList不为空{
 	    如果勾选了”同分组优先替换“，那么{
 		    行128，用同一分组的备数据顶替掉主数据，调用10.1.2.1.7.1.4.2.1.1，ReplaceEntityHandler.invoke();
 		} else{
 		    行135，主数据中符合筛选条件的直接过滤掉，调用，dataset.filter("mainData", Where.get().add(new Script(condition.toString())));
 		}
 	}
-
 }
 -------------------------------------------------------------------------------------------------
 10.1.2.1.7.1.4.2.1.1，
@@ -673,7 +687,7 @@ protected void AbstractIllegalFilterDataPipeline.doFilter(DeltaRule deltaRule, D
 	
 public List<Entity> ReplaceEntityHandler.invoke(Context cont, List<Entity> entityList, Map<String, Object> param) {
     行49-行67，数据准备，取出主数据mainData，备用数据bakData，主数据中需要替换掉的数据列表needReplaceList；
-	行69，对备用数据做过滤；
+	行69，对备用数据做过滤；（确保备用数据也是经过过滤的）
 	行74-行88，在主数据对应的位置，直接用某个备用数据，覆盖掉需要替换的主数据。遍历主数据的每一个元素，如果这个元素在needReplaceList里面的话，那么{
 	    遍历备用数据每一个元素，{
 		    如果备用数据可以顶替主数据元素，那么{
@@ -701,9 +715,8 @@ TagsFilterDataValve.invoke(){
     是否参加价格申报过滤，当前判断逻辑为判断tmc_tags
 	
 PriceDeclareFilterDataValve.invoke(){
-    行84-行119，构建筛选条件condition；例子：
-	condition=( e.get('tmc_tags') == null || !((Set)e.get('tmc_tags')).contains(19577) || ( !((Set)e.get('tmc_tags')).contains(19577) &&  !((Set)e.get('tmc_tags')).contains(96834) &&  !((Set)e.get('tmc_tags')).contains(86018) &&  !((Set)e.get('tmc_tags')).contains(300018132)  ) )&& ( (( e.get('secKillTag') == null || !((String)e.get('secKillTag')).equals("big") ) && ( e.get('tags') == null || (!((Set)e.get('tags')).contains(19577) && !((Set)e.get('tags')).contains(96834) && !((Set)e.get('tags')).contains(86018) &&  !((Set)e.get('tags')).contains(300018132) ) ))&& ( e.get('shopTags') == null || ( !((Set)e.get('shopTags')).contains(35585)  ) ) )
-
+    行84-行119，构建筛选条件condition；例子：condition=( e.get('tmc_tags') == null || !((Set)e.get('tmc_tags')).contains(19577) || ( !((Set)e.get('tmc_tags')).contains(19577) &&  !((Set)e.get('tmc_tags')).contains(96834) &&  !((Set)e.get('tmc_tags')).contains(86018) &&  !((Set)e.get('tmc_tags')).contains(300018132)  ) )&& ( (( e.get('secKillTag') == null || !((String)e.get('secKillTag')).equals("big") ) && ( e.get('tags') == null || (!((Set)e.get('tags')).contains(19577) && !((Set)e.get('tags')).contains(96834) && !((Set)e.get('tags')).contains(86018) &&  !((Set)e.get('tags')).contains(300018132) ) ))&& ( e.get('shopTags') == null || ( !((Set)e.get('shopTags')).contains(35585)  ) ) )
+    行121，实际执行过滤操作，调用10.1.2.1.7.1.4.2.1，doFilter(deltaRule, dataset, condition, LifeCircleEventTypeEnum.PRICE_DECLARE_FILTER, context);
 }
 -------------------------------------------------------------------------------------------------
 10.1.2.1.7.1.4.5，
@@ -711,7 +724,9 @@ PriceDeclareFilterDataValve.invoke(){
     虚假交易商家处罚
 
 FakeTradePunishValve.invoke(){
-
+    检察不需要进行过滤的情况；
+	行134-行146，构建筛选条件condition；
+	行147，实际执行过滤操作；
 }
 -------------------------------------------------------------------------------------------------
 10.1.2.1.7.1.4.6，
@@ -719,7 +734,11 @@ FakeTradePunishValve.invoke(){
     过滤掉非活动商家
 
 ActivityShopFilterDataValve.invoke(){
-
+    行76，根据配置判断是否需要管控，调用10.1.2.1.7.1.4.6.1，
+	如果需要管控{
+	    行78-行95，构建筛选条件condition；
+	行96，实际执行过滤操作；
+	}
 }
 -------------------------------------------------------------------------------------------------
 10.1.2.1.7.1.4.7，
@@ -727,14 +746,16 @@ ActivityShopFilterDataValve.invoke(){
     过滤非有效数据(重复)
 
 DuplicateFilterDataValve.invoke(){
-
+    行28，构建筛选条件condition，如果这个entity已经被打标记“grouped”，那么将会在过滤过程中去掉；StringBuffer condition = new StringBuffer("e.get('grouped')!=null && e.get('grouped')");
+	行96，实际执行过滤操作；
 }
 -------------------------------------------------------------------------------------------------
 10.1.2.1.7.1.4.8，
 函数功能：
 
 BlackRoomFilterDataValve.invoke(){
-
+    行147，构建筛选条件，condition.append("(e.get('_black_room_filter_') != null && ((String)e.get('_black_room_filter_')).equals('1'))");
+    行148，实际执行过滤操作；doFilter(deltaRule, dataset, condition, LifeCircleEventTypeEnum.BLACK_ROOM_FILTER, context);
 }
 -------------------------------------------------------------------------------------------------
 10.1.2.1.7.1.4.9，
@@ -770,20 +791,24 @@ GuiPeiDataValve.invoke(){
 函数功能：
 
 FodderDataFilterValve.invoke(){
-
+    
 }
 -------------------------------------------------------------------------------------------------
 10.1.2.1.7.1.5，
 函数功能：
     重新确定每个商品的展示位置pos（RePosDataValve）
 public void RePosDataValve.invoke(Context context) throws Exception {
-    行70,重排主库的数据,使得pos开始的实体为第一个元素,调用10.1.2.1.7.1.5.1,  dataset.handle("mainData", (Handler) ApplicationService.getBean("arrangeByPosHandler"),Params.get().addValue("pos", currrentBeginPos));
+    行56，在entity列表中，获取当前投放开始的位置currrentBeginPos；
+	行57-行67，重新修正currrentBeginPos的数值；
+	行70,重排主库的数据,使得pos开始的实体为第一个元素,调用10.1.2.1.7.1.5.1,  dataset.handle("mainData", (Handler) ApplicationService.getBean("arrangeByPosHandler"),Params.get().addValue("pos", currrentBeginPos));
+	
 }
 
 -------------------------------------------------------------------------------------------------
 10.1.2.1.7.1.5.1,
 函数功能:
     从主数据中取下一批轮播的数据
+	
 public List<Entity> ArrangeByPosHandler.invoke(Context cont, List<Entity> entityList,Map<String, Object> param) {
     行31,pos表示投放开始取数据的位置;
 	行41,取出主数据列表;
@@ -795,7 +820,7 @@ public List<Entity> ArrangeByPosHandler.invoke(Context cont, List<Entity> entity
 -------------------------------------------------------------------------------------------------
 10.1.2.1.7.1.6，
 函数功能：
-    产生publishJob(GeneratePublishJobDataValve)
+    产生publishJob的入口方法
 	
 public void GeneratePublishJobDataValve.invoke(Context context) throws Exception {
 	行110,具体执行,调用10.1.2.1.7.1.6.1，DeltaPublishJobDO publishJob = innerExecute(context);
@@ -811,8 +836,8 @@ private DeltaPublishJobDO GeneratePublishJobDataValve.innerExecute(final Context
 -------------------------------------------------------------------------------------------------
 10.1.2.1.7.1.6.1.1,
 函数功能：
-
-private DeltaPublishJobDO genPublishData(Context context, List<Entity> entityList, DeltaRuleDO deltaRule) throws DAOException {
+    
+private DeltaPublishJobDO GeneratePublishJobDataValve.genPublishData(Context context, List<Entity> entityList, DeltaRuleDO deltaRule) throws DAOException {
     行238，获取这个资源位对应的前端搭建的模块结构和需要哪些字段的相关信息；
     行249，propertiesList是一个map的list，每一个map是一个实体的所有的字段；
 	行285，遍历schemaDOList，每一个DeltaResourceRenderSchemaDO（也是DeltaDatasetMetaMappingDO），就是前端需要展示的一个字段的名字，需要后台去填充相应的内容{
@@ -826,13 +851,20 @@ private DeltaPublishJobDO genPublishData(Context context, List<Entity> entityLis
 }
 -------------------------------------------------------------------------------------------------
 10.1.2.1.7.1.6.1.1.1，
+函数功能：
+    ？？？
+	
 private boolean processFetchValue(DeltaRuleDO deltaRule, Long ruleId, List<Integer> pitOccuppied, int curPitPos,Entity cEntity, HashMap<String, Object> property, Map<String, String> dataMap, DeltaResourceRenderSchemaDO schemaDO,DeltaDatasetMetaMappingDO metaMappingResultDO, boolean isVideoModule) throws DAOException {
-
+    ？？？
 
 }
 
 -------------------------------------------------------------------------------------------------
-
+80台机器如何出现在ScheduleX网站中的？
+如何让某些机器参与调度，某些机器不参与？？？如何指定ScheduleX只去调度某几台机器？
+100台机器如何分开的？？？20台给操作者使用？80台均分10000个需要执行的任务？
+为什么要做抢占式的？
+机器任务的调度？机器任务的分发？
 
 
 
