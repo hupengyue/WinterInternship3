@@ -1003,136 +1003,136 @@ stop
 ================================================================================================
 
 
-<sql id="rmcResource_doQueryParams">
+<sql id="rmcResource_doQueryParamsV2">
 		<dynamic prepend="WHERE">
 			<isNotNull property="id" prepend="AND">
-        <![CDATA[  
-        id = #id#  
+				<![CDATA[
+        id = #id#
         ]]>
 			</isNotNull>
 			<isNotNull property="gmtCreate" prepend="AND">
-        <![CDATA[  
-        gmt_create = #gmtCreate#  
+				<![CDATA[
+        gmt_create = #gmtCreate#
         ]]>
 			</isNotNull>
 			<isNotNull property="gmtModified" prepend="AND">
-        <![CDATA[  
-        gmt_modified = #gmtModified#  
+				<![CDATA[
+        gmt_modified = #gmtModified#
         ]]>
 			</isNotNull>
 			<isNotNull property="code" prepend="AND">
-        <![CDATA[  
+				<![CDATA[
         code like concat(#code#,'%')
         ]]>
 			</isNotNull>
 			<isNotNull property="department" prepend="AND">
-        <![CDATA[  
-        department = #department#  
+				<![CDATA[
+        department = #department#
         ]]>
 			</isNotNull>
 			<isNotNull property="pageName" prepend="AND">
-        <![CDATA[  
-        page_name like concat('%', #pageName# ,'%') 
+				<![CDATA[
+        page_name like concat('%', #pageName# ,'%')
         ]]>
 			</isNotNull>
 			<isNotNull property="price" prepend="AND">
-        <![CDATA[  
-        price = #price#  
+				<![CDATA[
+        price = #price#
         ]]>
 			</isNotNull>
 			<isNotNull property="spm" prepend="AND">
-        <![CDATA[  
-        spm = #spm#  
+				<![CDATA[
+        spm = #spm#
         ]]>
 			</isNotNull>
 			<isNotNull property="description" prepend="AND">
-        <![CDATA[  
-        description = #description#  
+				<![CDATA[
+        description = #description#
         ]]>
 			</isNotNull>
 			<isNotNull property="status" prepend="AND">
-        <![CDATA[  
-        status = #status#  
+				<![CDATA[
+        status = #status#
         ]]>
 			</isNotNull>
 			<isNotNull property="appCode" prepend="AND">
-        <![CDATA[  
-        app_code = #appCode#  
+				<![CDATA[
+        app_code = #appCode#
         ]]>
 			</isNotNull>
 			<isNotNull property="name" prepend="AND">
-        <![CDATA[  
-        name like concat('%', #name#, '%') 
+				<![CDATA[
+        name like concat(#name#, '%')
         ]]>
 			</isNotNull>
 			<isNotNull property="owner" prepend="AND">
-        <![CDATA[  
-        owner = #owner#  
+				<![CDATA[
+        owner = #owner#
         ]]>
 			</isNotNull>
 			<isNotNull property="creator" prepend="AND">
-        <![CDATA[  
-        creator = #creator#  
+				<![CDATA[
+        creator = #creator#
         ]]>
 			</isNotNull>
 			<isNotNull property="modifier" prepend="AND">
-        <![CDATA[  
-        modifier = #modifier#  
+				<![CDATA[
+        modifier = #modifier#
         ]]>
 			</isNotNull>
 			<isNotNull property="pageUrl" prepend="AND">
-        <![CDATA[  
-        page_url = #pageUrl#  
+				<![CDATA[
+        page_url = #pageUrl#
         ]]>
 			</isNotNull>
 			<isNotNull property="parentId" prepend="AND">
-        <![CDATA[  
-        parent_id = #parentId#  
+				<![CDATA[
+        parent_id = #parentId#
         ]]>
 			</isNotNull>
 			<isNotNull property="position" prepend="AND">
-        <![CDATA[  
-        position = #position#  
+				<![CDATA[
+        position = #position#
         ]]>
 			</isNotNull>
 			<isNotNull property="authUsers" prepend="AND">
-               <![CDATA[  
-                  auth_users like CONCAT('%',#authUsers#,'%')  
+				<![CDATA[
+                  auth_users like CONCAT('%',#authUsers#,'%')
                ]]>
 			</isNotNull>
-			
+
 			<isNotNull property="status" prepend="AND">
-        <![CDATA[  
-        status = #status#  
+				<![CDATA[
+        status = #status#
         ]]>
 			</isNotNull>
-		<isNotNull property="activityId" prepend="AND">
-	        <![CDATA[  
-	        	activity_id = #activityId#  
+			<isNotNull property="activityId" prepend="AND">
+				<![CDATA[
+	        	activity_id = #activityId#
 	        ]]>
-		</isNotNull>
-		<isNotNull property="isAutoSchedule" prepend="AND">
-            <![CDATA[  
-                is_auto_schedule = #isAutoSchedule#  
-            ]]>
-        </isNotNull>
-        <isPropertyAvailable property="resourceIds">  
-	        <isNotNull property="resourceIds" prepend="AND">
-				id in 
-		     	<iterate property="resourceIds" open="(" close=")" conjunction=",">
-					#resourceIds[]#
-				</iterate>
 			</isNotNull>
-		</isPropertyAvailable>  
-		  <isNotNull property="lifecycle" prepend="AND">
-            <![CDATA[  
-                lifecycle = #lifecycle#  
+			<isNotNull property="isAutoSchedule" prepend="AND">
+				<![CDATA[
+                is_auto_schedule = #isAutoSchedule#
             ]]>
-        </isNotNull>
-		  <isNotNull property="bizCode" prepend="AND">
-            <![CDATA[  
-                biz_code = #bizCode#  
+			</isNotNull>
+			<isPropertyAvailable property="resourceIds">
+				<isNotNull property="resourceIds" prepend="AND">
+					id in
+					<iterate property="resourceIds" open="(" close=")" conjunction=",">
+						#resourceIds[]#
+					</iterate>
+				</isNotNull>
+			</isPropertyAvailable>
+			<isNotNull property="lifecycle" prepend="AND">
+				<![CDATA[
+                lifecycle = #lifecycle#
             ]]>
-        </isNotNull>
+			</isNotNull>
+			<isNotNull property="bizCode" prepend="AND">
+				<![CDATA[
+                biz_code = #bizCode#
+            ]]>
+			</isNotNull>
 		</dynamic>
 	</sql>
